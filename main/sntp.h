@@ -1,0 +1,1 @@
+void sntp_main(void);

@@ -153,9 +153,6 @@ static void print_servers(void)
 
 static void obtain_time(void)
 {
-    ESP_ERROR_CHECK( nvs_flash_init() );
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK( esp_event_loop_create_default() );
     // Register handler to log SNTP event with timeval payload
     ESP_ERROR_CHECK(esp_event_handler_register(NETIF_SNTP_EVENT, NETIF_SNTP_TIME_SYNC, &sntp_event_handler, NULL));
 
