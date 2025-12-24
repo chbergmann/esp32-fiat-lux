@@ -15,12 +15,11 @@
 #include "esp_attr.h"
 #include "esp_sleep.h"
 #include "nvs_flash.h"
-#include "protocol_examples_common.h"
 #include "esp_netif_sntp.h"
 #include "lwip/ip_addr.h"
 #include "esp_sntp.h"
 
-static const char *TAG = "example";
+static const char *TAG = "sntp";
 
 #ifndef INET6_ADDRSTRLEN
 #define INET6_ADDRSTRLEN 48
@@ -128,10 +127,6 @@ void sntp_main(void)
             vTaskDelay(2000 / portTICK_PERIOD_MS);
         }
     }
-
-    const int deep_sleep_sec = 10;
-    ESP_LOGI(TAG, "Entering deep sleep for %d seconds", deep_sleep_sec);
-    esp_deep_sleep(1000000LL * deep_sleep_sec);
 }
 
 static void print_servers(void)
@@ -183,12 +178,6 @@ static void obtain_time(void)
 
 #endif /* LWIP_DHCP_GET_NTP_SRV */
 
-    /* This helper function configures Wi-Fi or Ethernet, as selected in menuconfig.
-     * Read "Establishing Wi-Fi or Ethernet Connection" section in
-     * examples/protocols/README.md for more information about this function.
-     */
-    ESP_ERROR_CHECK(example_connect());
-
 #if LWIP_DHCP_GET_NTP_SRV
     ESP_LOGI(TAG, "Starting SNTP");
     esp_netif_sntp_start();
@@ -236,7 +225,6 @@ static void obtain_time(void)
     time(&now);
     localtime_r(&now, &timeinfo);
 
-    ESP_ERROR_CHECK( example_disconnect() );
     esp_netif_sntp_deinit();
     ESP_ERROR_CHECK(esp_event_handler_unregister(NETIF_SNTP_EVENT, NETIF_SNTP_TIME_SYNC, &sntp_event_handler));
 }

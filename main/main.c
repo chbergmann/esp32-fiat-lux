@@ -14,11 +14,14 @@
 
 #include "wifi_station.h"
 #include "sntp.h"
+#include "webserver.h"
 
 static const char *TAG = "main";
 
 void app_main(void)
 {
+    static httpd_handle_t server = NULL;
+
     //Initialize NVS
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -32,6 +35,7 @@ void app_main(void)
          * and call esp_log_level_set() before esp_wifi_init() to improve the log level of the wifi module. */
         esp_log_level_set("wifi", CONFIG_LOG_MAXIMUM_LEVEL);
     }
+    ESP_LOGI(TAG, "Fiat Lux!");
 
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK( esp_event_loop_create_default() );
@@ -43,10 +47,18 @@ void app_main(void)
         /* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
      * happened. */
     if (bits & WIFI_CONNECTED_BIT) {
-        ESP_LOGI(TAG, "connected to ap SSID:%s password:%s", CONFIG_ESP_WIFI_SSID, CONFIG_ESP_WIFI_PASSWORD);
+        ESP_LOGI(TAG, "connected to ap SSID:%s", CONFIG_ESP_WIFI_SSID);
         sntp_main();
+        /* Start the server for the first time */
+        server = start_webserver();
+
+        while (server) {
+            sleep(5);
+        }
+
     } else if (bits & WIFI_FAIL_BIT) {
         ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s", CONFIG_ESP_WIFI_SSID, CONFIG_ESP_WIFI_PASSWORD);
+        stop_webserver(server);
     } else {
         ESP_LOGE(TAG, "UNEXPECTED EVENT");
     }

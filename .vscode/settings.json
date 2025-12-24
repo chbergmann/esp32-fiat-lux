@@ -5,7 +5,7 @@
   "idf.openOcdConfigs": [
     "board/esp32c6-builtin.cfg"
   ],
-  "idf.port": "/dev/ttyS0",
+  "idf.port": "/dev/ttyACM0",
   "idf.toolsPath": "/home/christi/.espressif",
   "idf.customExtraVars": {
     "IDF_TARGET": "esp32c6"
@@ -16,5 +16,6 @@
     "--query-driver=/home/christi/.espressif/tools/riscv32-esp-elf/esp-15.2.0_20251204/riscv32-esp-elf/bin/riscv32-esp-elf-gcc",
     "--compile-commands-dir=/home/christi/src/esp32-fiat-lux/build"
   ],
-  "idf.flashType": "JTAG"
+  "idf.flashType": "UART",
+  "idf.monitorPort": "/dev/ttyACM0"
 }
