@@ -1,0 +1,4 @@
+*.old
+build
+dependencies.lock
+managed_components
