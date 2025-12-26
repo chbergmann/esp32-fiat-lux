@@ -1,6 +1,8 @@
 # ESP32 Fiat Lux
 A WS2812 LED controller with webserver
 
+THIS PROJECT IS UNFINISHED
+
 ## Featues
 
 
