@@ -25,6 +25,8 @@ static const char *TAG = "sntp";
 #define INET6_ADDRSTRLEN 48
 #endif
 
+#define MY_TIME_ZONE CONFIG_TIME_ZONE
+
 /* Variable holding number of times ESP32 restarted since first boot.
  * It is placed into RTC memory using RTC_DATA_ATTR and
  * maintains its value when ESP32 wakes from deep sleep.
@@ -63,7 +65,7 @@ void time_sync_notification_cb(struct timeval *tv)
     ESP_LOGI(TAG, "Notification of a time synchronization event");
 }
 
-void sntp_main(void)
+void sntp_start(void)
 {
     ++boot_count;
     ESP_LOGI(TAG, "Boot count: %d", boot_count);
@@ -102,19 +104,11 @@ void sntp_main(void)
 
     char strftime_buf[64];
 
-    // Set timezone to Eastern Standard Time and print local time
-    setenv("TZ", "EST5EDT,M3.2.0/2,M11.1.0", 1);
+    setenv("TZ", MY_TIME_ZONE, 1);
     tzset();
     localtime_r(&now, &timeinfo);
     strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-    ESP_LOGI(TAG, "The current date/time in New York is: %s", strftime_buf);
-
-    // Set timezone to China Standard Time
-    setenv("TZ", "CST-8", 1);
-    tzset();
-    localtime_r(&now, &timeinfo);
-    strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-    ESP_LOGI(TAG, "The current date/time in Shanghai is: %s", strftime_buf);
+    ESP_LOGI(TAG, "The current date/time in time zone %s is: %s", MY_TIME_ZONE, strftime_buf);
 
     if (sntp_get_sync_mode() == SNTP_SYNC_MODE_SMOOTH) {
         struct timeval outdelta;
@@ -213,7 +207,10 @@ static void obtain_time(void)
 #endif
 
     print_servers();
+}
 
+void sntp_wait4time(void)
+{
     // wait for time to be set
     time_t now = 0;
     struct tm timeinfo = { 0 };
@@ -224,7 +221,10 @@ static void obtain_time(void)
     }
     time(&now);
     localtime_r(&now, &timeinfo);
+}
 
+void sntp_end(void)
+{
     esp_netif_sntp_deinit();
     ESP_ERROR_CHECK(esp_event_handler_unregister(NETIF_SNTP_EVENT, NETIF_SNTP_TIME_SYNC, &sntp_event_handler));
 }

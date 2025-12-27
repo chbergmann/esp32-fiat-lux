@@ -119,6 +119,10 @@ menu "Fiat Lux Configuration"
             bool "custom implementation"
     endchoice
 
+    config TIME_ZONE
+        string "Time zone"
+        default "CET"
+
     config LED_STRIP_GPIO_NUM
         int "LED strip Din GPIO number"
         default 18

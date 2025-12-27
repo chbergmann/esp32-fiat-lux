@@ -51,7 +51,7 @@ void app_main(void)
      * happened. */
     if (bits & WIFI_CONNECTED_BIT) {
         ESP_LOGI(TAG, "connected to ap SSID:%s", CONFIG_ESP_WIFI_SSID);
-        sntp_main();
+        sntp_start();
         /* Start the server for the first time */
         server = start_webserver();
         ESP_ERROR_CHECK(start_file_server(server, base_path));
