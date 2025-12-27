@@ -118,6 +118,15 @@ menu "Fiat Lux Configuration"
         config SNTP_TIME_SYNC_METHOD_CUSTOM
             bool "custom implementation"
     endchoice
+
+    config LED_STRIP_GPIO_NUM
+        int "LED strip Din GPIO number"
+        default 18
+
+    config LED_NUMBERS
+        int "Number of LEDs in strip"
+        default 5
+
 endmenu
 menu "HTTP file_serving menu"
 
