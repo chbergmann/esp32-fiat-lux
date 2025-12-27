@@ -143,3 +143,23 @@ void led_monocolor(led_strip_t* ledstrip, uint8_t red, uint8_t green, uint8_t bl
     ESP_ERROR_CHECK(rmt_transmit(ledstrip->led_chan, ledstrip->led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &ledstrip->tx_config));
     ESP_ERROR_CHECK(rmt_tx_wait_all_done(ledstrip->led_chan, portMAX_DELAY));
 }
+
+void led_rainbow(led_strip_t* ledstrip, uint32_t startled)
+{
+    uint32_t red = 0;
+    uint32_t green = 0;
+    uint32_t blue = 0;
+    uint16_t hue = 0;
+    uint16_t start_rgb = 0;
+    
+    for (int j = 0; j < EXAMPLE_LED_NUMBERS; j ++) {
+        // Build RGB pixels
+        hue = (j - startled) * 360 / EXAMPLE_LED_NUMBERS + start_rgb;
+        led_strip_hsv2rgb(hue, 100, 100, &red, &green, &blue);
+        led_strip_pixels[j * 3 + 0] = green;
+        led_strip_pixels[j * 3 + 1] = red;
+        led_strip_pixels[j * 3 + 2] = blue;
+    }
+    ESP_ERROR_CHECK(rmt_transmit(ledstrip->led_chan, ledstrip->led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &ledstrip->tx_config));
+    ESP_ERROR_CHECK(rmt_tx_wait_all_done(ledstrip->led_chan, portMAX_DELAY));
+}

@@ -3,3 +3,14 @@
 	margin: 4px auto 0 !important;
 	max-width: max-content;
 }
+
+#buttonlist { width:100%; }
+.imgbutton {   
+  margin: 1em;
+  height:3em;
+  position: absolute;
+  left: 50%;
+  -ms-transform: translate(-50%, 0%);
+  transform: translate(-50%, 0%); }
+.btnimg { height:3em; }
+

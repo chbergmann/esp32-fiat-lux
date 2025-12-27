@@ -39,6 +39,10 @@
 
 static const char *TAG = "webserver";
 
+#define ALGO_MONO       "mono"
+#define ALGO_RAINBOW    "rainbow"
+
+
 static led_strip_t ledstrip = { 0 };
 
 #if CONFIG_EXAMPLE_BASIC_AUTH
@@ -192,40 +196,43 @@ static esp_err_t led_get_handler(httpd_req_t *req)
             /* Get value of expected key from query string */
             if (httpd_query_key_value(buf, "red", col, sizeof(col)) == ESP_OK) {
                 red = strtoul(col, NULL, 10);
-                ESP_LOGI(TAG, "Found URL query parameter => red=%d", red);
             }
             if (httpd_query_key_value(buf, "green", col, sizeof(col)) == ESP_OK) {
                 green = strtoul(col, NULL, 10);
-                ESP_LOGI(TAG, "Found URL query parameter => green=%d", green);
             }
             if (httpd_query_key_value(buf, "blue", col, sizeof(col)) == ESP_OK) {
                 blue = strtoul(col, NULL, 10);
-                ESP_LOGI(TAG, "Found URL query parameter => blue=%d", blue);
             }
 
-            led_monocolor(&ledstrip, red, green, blue);
         }
         free(buf);
     }
 
+    if(strncmp(req->user_ctx, ALGO_MONO, sizeof(ALGO_MONO)) == 0)
+        led_monocolor(&ledstrip, red, green, blue);
+
+    else if(strncmp(req->user_ctx, ALGO_RAINBOW, sizeof(ALGO_RAINBOW)) == 0)
+        led_rainbow(&ledstrip, 0);
+
     httpd_resp_send(req, NULL, 0);
 
-    /* After sending the HTTP response the old HTTP request
-     * headers are lost. Check if HTTP request headers can be read now. */
-    if (httpd_req_get_hdr_value_len(req, "Host") == 0) {
-        ESP_LOGI(TAG, "Request headers lost");
-    }
+    /* After sending the HTTP response the old HTTP request headers are lost. */
     return ESP_OK;
 }
-
 
 static const httpd_uri_t led = {
     .uri       = "/led",
     .method    = HTTP_GET,
     .handler   = led_get_handler,
-    .user_ctx  = NULL
+    .user_ctx  = ALGO_MONO
 };
 
+static const httpd_uri_t rainbow = {
+    .uri       = "/rainbow",
+    .method    = HTTP_GET,
+    .handler   = led_get_handler,
+    .user_ctx  = ALGO_RAINBOW
+};
 
 /* This handler allows the custom error handling functionality to be
  * tested from client side. For that, when a PUT request 0 is sent to
@@ -308,6 +315,7 @@ httpd_handle_t start_webserver(void)
         // Set URI handlers
         ESP_LOGI(TAG, "Registering URI handlers");
         httpd_register_uri_handler(server, &led);
+        httpd_register_uri_handler(server, &rainbow);
 #if CONFIG_EXAMPLE_ENABLE_SSE_HANDLER
         httpd_register_uri_handler(server, &sse); // Register SSE handler
 #endif
