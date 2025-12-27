@@ -1,3 +1,4 @@
+var bright = 100;
 
 function trigger_restapi(url)
 {
@@ -27,13 +28,14 @@ function onLoad()
     // listen to a color picker's color:change event
     // color:change callbacks receive the current color
     colorPicker.on('color:change', function(color) {
-        // log the current color as a HEX string
         const url = `/led?red=${color.red}&green=${color.green}&blue=${color.blue}`;
+        bright = color.value;
         trigger_restapi(url)
     });
 }
 
 function rainbow()
 {
-    trigger_restapi("/rainbow")
+    const url = `/rainbow?bright=${bright}`;
+    trigger_restapi(url)
 }

@@ -183,6 +183,7 @@ static esp_err_t led_get_handler(httpd_req_t *req)
     uint32_t red = 0;
     uint32_t green = 0;
     uint32_t blue = 0;
+    uint32_t bright = 0;
 
     /* Read URL query string length and allocate memory for length + 1,
      * extra byte for null termination */
@@ -203,6 +204,9 @@ static esp_err_t led_get_handler(httpd_req_t *req)
             if (httpd_query_key_value(buf, "blue", col, sizeof(col)) == ESP_OK) {
                 blue = strtoul(col, NULL, 10);
             }
+            if (httpd_query_key_value(buf, "bright", col, sizeof(col)) == ESP_OK) {
+                bright = strtoul(col, NULL, 10);
+            }
 
         }
         free(buf);
@@ -212,7 +216,7 @@ static esp_err_t led_get_handler(httpd_req_t *req)
         led_monocolor(&ledstrip, red, green, blue);
 
     else if(strncmp(req->user_ctx, ALGO_RAINBOW, sizeof(ALGO_RAINBOW)) == 0)
-        led_rainbow(&ledstrip, 0);
+        led_rainbow(&ledstrip, 0, bright);
 
     httpd_resp_send(req, NULL, 0);
 

@@ -189,9 +189,9 @@ static esp_err_t download_get_handler(httpd_req_t *req)
     char filepath[FILE_PATH_MAX];
     FILE *fd = NULL;
     struct stat file_stat;
+    char* base_path = ((struct file_server_data *)req->user_ctx)->base_path;
 
-    const char *filename = get_path_from_uri(filepath, ((struct file_server_data *)req->user_ctx)->base_path,
-                                             req->uri, sizeof(filepath));
+    const char *filename = get_path_from_uri(filepath, base_path, req->uri, sizeof(filepath));
     if (!filename) {
         ESP_LOGE(TAG, "Filename is too long");
         /* Respond with 500 Internal Server Error */
@@ -200,8 +200,13 @@ static esp_err_t download_get_handler(httpd_req_t *req)
     }
 
     /* If name has trailing '/', respond with directory contents */
-    if (filename[strlen(filename) - 1] == '/') {
-        return http_resp_dir_html(req, filepath);
+    if(strncmp(filepath + strlen(base_path), "/files", sizeof(filepath)) == 0) {
+        return http_resp_dir_html(req, "/");
+    }
+
+    if(strncmp(filepath + strlen(base_path), "/", sizeof(filepath)) == 0)
+    {
+        strcat(filepath, "index.html");
     }
 
     if (stat(filepath, &file_stat) == -1) {

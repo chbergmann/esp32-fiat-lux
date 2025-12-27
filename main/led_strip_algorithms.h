@@ -12,4 +12,4 @@ typedef struct {
 void init_ledstrip(led_strip_t* ledstrip);
 void led_strip_colorful1(led_strip_t* ledstrip, uint32_t delay_ms);
 void led_monocolor(led_strip_t* ledstrip, uint8_t red, uint8_t green, uint8_t blue);
-void led_rainbow(led_strip_t* ledstrip, uint32_t startled);
+void led_rainbow(led_strip_t* ledstrip, uint32_t startled, uint32_t bright);
