@@ -19,10 +19,10 @@
 
 static const char *TAG = "main";
 
-void app_main(void)
+extern "C" void app_main(void)
 {
-    static httpd_handle_t server = NULL;
     const char* base_path = "/data";
+    Webserver webserver;
 
     //Initialize NVS
     esp_err_t ret = nvs_flash_init();
@@ -35,7 +35,7 @@ void app_main(void)
     if (CONFIG_LOG_MAXIMUM_LEVEL > CONFIG_LOG_DEFAULT_LEVEL) {
         /* If you only want to open more logs in the wifi module, you need to make the max level greater than the default level,
          * and call esp_log_level_set() before esp_wifi_init() to improve the log level of the wifi module. */
-        esp_log_level_set(TAG, CONFIG_LOG_MAXIMUM_LEVEL);
+        esp_log_level_set(TAG, (esp_log_level_t)CONFIG_LOG_MAXIMUM_LEVEL);
     }
     ESP_LOGI(TAG, "Fiat Lux!");
 
@@ -53,12 +53,13 @@ void app_main(void)
         ESP_LOGI(TAG, "connected to ap SSID:%s", CONFIG_ESP_WIFI_SSID);
         sntp_start();
         /* Start the server for the first time */
-        server = start_webserver();
-        ESP_ERROR_CHECK(start_file_server(server, base_path));
+        webserver.start();
+        ESP_ERROR_CHECK(start_file_server(webserver.get_server(), base_path));
+        webserver.loop();
 
     } else if (bits & WIFI_FAIL_BIT) {
         ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s", CONFIG_ESP_WIFI_SSID, CONFIG_ESP_WIFI_PASSWORD);
-        stop_webserver(server);
+        webserver.stop();
     } else {
         ESP_LOGE(TAG, "UNEXPECTED EVENT");
     }

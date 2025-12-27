@@ -28,8 +28,10 @@
 #include <esp_system.h>
 #include "nvs_flash.h"
 #include "esp_eth.h"
-#include "led_strip_algorithms.h"
 #endif  // !CONFIG_IDF_TARGET_LINUX
+#include "Ledstrip.h"
+#include <string>
+#include "webserver.h"
 
 #define EXAMPLE_HTTP_QUERY_KEY_MAX_LEN  (64)
 
@@ -39,11 +41,18 @@
 
 static const char *TAG = "webserver";
 
-#define ALGO_MONO       "mono"
-#define ALGO_RAINBOW    "rainbow"
+#define URI_MONO       "/led"
+#define URI_RAINBOW    "/rainbow"
 
+Webserver::Webserver()
+{
+    server = NULL;
+}
 
-static led_strip_t ledstrip = { 0 };
+Webserver::~Webserver()
+{
+    stop();
+}
 
 #if CONFIG_EXAMPLE_BASIC_AUTH
 
@@ -176,9 +185,16 @@ static void httpd_register_basic_auth(httpd_handle_t server)
 
 
 /* An HTTP GET handler */
-static esp_err_t led_get_handler(httpd_req_t *req)
+static esp_err_t c_led_get_handler(httpd_req_t *req)
 {
-    char*  buf;
+    ESP_LOGI(TAG, "GET %s", req->uri);
+    Webserver* webserver = (Webserver*)req->user_ctx;
+    return webserver->led_get_handler(req);
+}
+
+/* An HTTP GET handler */
+esp_err_t Webserver::led_get_handler(httpd_req_t *req)
+{
     size_t buf_len;
     uint32_t red = 0;
     uint32_t green = 0;
@@ -189,7 +205,7 @@ static esp_err_t led_get_handler(httpd_req_t *req)
      * extra byte for null termination */
     buf_len = httpd_req_get_url_query_len(req) + 1;
     if (buf_len > 1) {
-        buf = malloc(buf_len);
+        char buf[buf_len];
         ESP_RETURN_ON_FALSE(buf, ESP_ERR_NO_MEM, TAG, "buffer alloc failed");
         if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
             ESP_LOGI(TAG, "Found URL query => %s", buf);
@@ -207,16 +223,14 @@ static esp_err_t led_get_handler(httpd_req_t *req)
             if (httpd_query_key_value(buf, "bright", col, sizeof(col)) == ESP_OK) {
                 bright = strtoul(col, NULL, 10);
             }
-
         }
-        free(buf);
     }
 
-    if(strncmp(req->user_ctx, ALGO_MONO, sizeof(ALGO_MONO)) == 0)
-        led_monocolor(&ledstrip, red, green, blue);
+    if(string(req->uri).find(URI_MONO) != string::npos)
+        ledstrip.monocolor(red, green, blue);
 
-    else if(strncmp(req->user_ctx, ALGO_RAINBOW, sizeof(ALGO_RAINBOW)) == 0)
-        led_rainbow(&ledstrip, 0, bright);
+    else if(string(req->uri).find(URI_RAINBOW) != string::npos)
+        ledstrip.rainbow(0, bright);
 
     httpd_resp_send(req, NULL, 0);
 
@@ -224,19 +238,6 @@ static esp_err_t led_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-static const httpd_uri_t led = {
-    .uri       = "/led",
-    .method    = HTTP_GET,
-    .handler   = led_get_handler,
-    .user_ctx  = ALGO_MONO
-};
-
-static const httpd_uri_t rainbow = {
-    .uri       = "/rainbow",
-    .method    = HTTP_GET,
-    .handler   = led_get_handler,
-    .user_ctx  = ALGO_RAINBOW
-};
 
 /* This handler allows the custom error handling functionality to be
  * tested from client side. For that, when a PUT request 0 is sent to
@@ -293,10 +294,18 @@ static const httpd_uri_t sse = {
 };
 #endif // CONFIG_EXAMPLE_ENABLE_SSE_HANDLER
 
-httpd_handle_t start_webserver(void)
+esp_err_t Webserver::start(void)
 {
-    httpd_handle_t server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+
+    for(int i=0; i<NUM_HANDLERS; i++) {
+        handlers[i].method = HTTP_GET;
+        handlers[i].handler   = c_led_get_handler;
+        handlers[i].user_ctx  = this;
+    }
+    handlers[0].uri = URI_MONO;
+    handlers[1].uri = URI_RAINBOW;
+
 #if CONFIG_IDF_TARGET_LINUX
     // Setting port as 8001 when building for Linux. Port 80 can be used only by a privileged user in linux.
     // So when a unprivileged user tries to run the application, it throws bind error and the server is not started.
@@ -311,33 +320,43 @@ httpd_handle_t start_webserver(void)
      * target URIs which match the wildcard scheme */
     config.uri_match_fn = httpd_uri_match_wildcard;
 
-    init_ledstrip(&ledstrip);
+    ledstrip.init();
 
     // Start the httpd server
     ESP_LOGI(TAG, "Starting server on port: '%d'", config.server_port);
     if (httpd_start(&server, &config) == ESP_OK) {
         // Set URI handlers
         ESP_LOGI(TAG, "Registering URI handlers");
-        httpd_register_uri_handler(server, &led);
-        httpd_register_uri_handler(server, &rainbow);
+        for(int i=0; i<NUM_HANDLERS; i++) { 
+            httpd_register_uri_handler(server, &handlers[i]);
+        }
 #if CONFIG_EXAMPLE_ENABLE_SSE_HANDLER
         httpd_register_uri_handler(server, &sse); // Register SSE handler
 #endif
 #if CONFIG_EXAMPLE_BASIC_AUTH
         httpd_register_basic_auth(server);
 #endif
-        return server;
+        return ESP_OK;
     }
 
     ESP_LOGI(TAG, "Error starting server!");
-    return NULL;
+    return ESP_FAIL;
 }
 
 #if !CONFIG_IDF_TARGET_LINUX
-esp_err_t stop_webserver(httpd_handle_t server)
+esp_err_t Webserver::stop()
 {
     // Stop the httpd server
-    return httpd_stop(server);
+    esp_err_t err = httpd_stop(server);
+    server = NULL;
+    return err;
 }
 
 #endif // !CONFIG_IDF_TARGET_LINUX
+
+void Webserver::loop()
+{ 
+    ESP_LOGI(TAG, "Entering loop");
+    while(1) 
+        sleep(5); 
+}

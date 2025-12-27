@@ -40,12 +40,15 @@ static void sntp_event_handler(void *arg, esp_event_base_t base, int32_t id, voi
     (void)arg; (void)base; (void)id;
     const esp_netif_sntp_time_sync_t *evt = (const esp_netif_sntp_time_sync_t *)data;
     if (evt) {
-        char ts[64];
-        time_t t = evt->tv.tv_sec;
-        struct tm tm_utc;
-        gmtime_r(&t, &tm_utc);
-        strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", &tm_utc);
-        ESP_LOGI(TAG, "SNTP event: time synced (UTC): %s.%06ld", ts, (long)evt->tv.tv_usec);
+        char strftime_buf[64];
+        time_t now;
+        struct tm timeinfo;
+        time(&now);
+
+        localtime_r(&now, &timeinfo);
+        strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+        ESP_LOGI(TAG, "SNTP event: time synced (%s): %s", MY_TIME_ZONE, strftime_buf);
+
     } else {
         ESP_LOGI(TAG, "SNTP event: time synced (no timeval provided)");
     }
@@ -67,19 +70,17 @@ void time_sync_notification_cb(struct timeval *tv)
 
 void sntp_start(void)
 {
+    time_t now;
+    struct tm timeinfo;
     ++boot_count;
     ESP_LOGI(TAG, "Boot count: %d", boot_count);
 
-    time_t now;
-    struct tm timeinfo;
     time(&now);
     localtime_r(&now, &timeinfo);
     // Is time set? If not, tm_year will be (1970 - 1900).
     if (timeinfo.tm_year < (2016 - 1900)) {
-        ESP_LOGI(TAG, "Time is not set yet. Connecting to WiFi and getting time over NTP.");
+        ESP_LOGI(TAG, "Time is not set yet. Getting time over NTP.");
         obtain_time();
-        // update 'now' variable with current time
-        time(&now);
     }
 #ifdef CONFIG_SNTP_TIME_SYNC_METHOD_SMOOTH
     else {
@@ -101,14 +102,6 @@ void sntp_start(void)
         time(&now);
     }
 #endif
-
-    char strftime_buf[64];
-
-    setenv("TZ", MY_TIME_ZONE, 1);
-    tzset();
-    localtime_r(&now, &timeinfo);
-    strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-    ESP_LOGI(TAG, "The current date/time in time zone %s is: %s", MY_TIME_ZONE, strftime_buf);
 
     if (sntp_get_sync_mode() == SNTP_SYNC_MODE_SMOOTH) {
         struct timeval outdelta;
@@ -142,6 +135,8 @@ static void print_servers(void)
 
 static void obtain_time(void)
 {
+    setenv("TZ", MY_TIME_ZONE, 1);
+    tzset();
     // Register handler to log SNTP event with timeval payload
     ESP_ERROR_CHECK(esp_event_handler_register(NETIF_SNTP_EVENT, NETIF_SNTP_TIME_SYNC, &sntp_event_handler, NULL));
 

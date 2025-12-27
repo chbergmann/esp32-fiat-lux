@@ -4,5 +4,13 @@
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT      BIT1
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void wifi_init_sta(void);
 EventBits_t wifi_wait_for_event();
+
+#ifdef __cplusplus
+}
+#endif

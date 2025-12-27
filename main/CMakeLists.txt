@@ -7,7 +7,7 @@ else()
     list(APPEND requires esp_wifi esp_eth)
 endif()
 
-idf_component_register(SRCS "mount.c" "file_server.c" "wifi_station.c" "led_strip_algorithms.c" "led_strip_encoder.c" "sntp.c" "webserver.c" "main.c"
+idf_component_register(SRCS "mount.c" "file_server.c" "wifi_station.c" "Ledstrip.cpp" "led_strip_encoder.c" "sntp.c" "webserver.cpp" "main.cpp"
                     PRIV_REQUIRES ${requires}
                     INCLUDE_DIRS ".")
 spiffs_create_partition_image(storage "../website" FLASH_IN_PROJECT)
