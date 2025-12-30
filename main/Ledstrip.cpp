@@ -9,8 +9,10 @@
 #include "esp_log.h"
 #include "led_strip_encoder.h"
 #include "Ledstrip.h"
+#include <cmath>
 
 #define RMT_LED_STRIP_RESOLUTION_HZ 10000000 // 10MHz resolution, 1 tick = 0.1us (led strip needs a high resolution)
+#define TASK_PERIOD_MS  10
 static const char *TAG = "leds";
 
 
@@ -68,6 +70,14 @@ void led_strip_hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t
 
 Ledstrip::Ledstrip()
 {
+    red = 0;
+    green = 0;
+    blue = 0;
+    bright = 100;
+    startled = 0;
+    loopcnt = 0;
+    algorithm = ALGO_MONO;
+
     led_chan = NULL;
     led_encoder = NULL;
     memset(&tx_chan_config, 0, sizeof(tx_chan_config));
@@ -78,7 +88,6 @@ Ledstrip::Ledstrip()
     tx_chan_config.resolution_hz = RMT_LED_STRIP_RESOLUTION_HZ;
     tx_chan_config.trans_queue_depth = 4; // set the number of transactions that can be pending in the background
     tx_config.loop_count = 0; // no transfer loop
-
 }
 
 esp_err_t Ledstrip::init()
@@ -94,43 +103,13 @@ esp_err_t Ledstrip::init()
 
     ESP_LOGI(TAG, "Enable RMT TX channel");
     ESP_ERROR_CHECK(rmt_enable(led_chan));
+    switchLeds();
     return ESP_OK;
 }
 
-void Ledstrip::colorful1(uint32_t delay_ms)
+void Ledstrip::monocolor()
 {
-    uint32_t red = 0;
-    uint32_t green = 0;
-    uint32_t blue = 0;
-    uint16_t hue = 0;
-    uint16_t start_rgb = 0;
-
-    ESP_LOGI(TAG, "Start LED rainbow chase");
-    while (1) {
-        for (int i = 0; i < 3; i++) {
-            for (int j = i; j < EXAMPLE_LED_NUMBERS; j += 3) {
-                // Build RGB pixels
-                hue = j * 360 / EXAMPLE_LED_NUMBERS + start_rgb;
-                led_strip_hsv2rgb(hue, 100, 100, &red, &green, &blue);
-                led_strip_pixels[j * 3 + 0] = green;
-                led_strip_pixels[j * 3 + 1] = blue;
-                led_strip_pixels[j * 3 + 2] = red;
-            }
-            // Flush RGB values to LEDs
-            ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
-            ESP_ERROR_CHECK(rmt_tx_wait_all_done(led_chan, portMAX_DELAY));
-            vTaskDelay(pdMS_TO_TICKS(delay_ms));
-            memset(led_strip_pixels, 0, sizeof(led_strip_pixels));
-            ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
-            ESP_ERROR_CHECK(rmt_tx_wait_all_done(led_chan, portMAX_DELAY));
-            vTaskDelay(pdMS_TO_TICKS(delay_ms));
-        }
-        start_rgb += 60;
-    }
-}
-
-void Ledstrip::monocolor(uint8_t red, uint8_t green, uint8_t blue)
-{
+    ESP_LOGI(TAG, "R=%d G=%d B=%d", red, green, blue);
     for (int j = 0; j < EXAMPLE_LED_NUMBERS; j ++) {
         // Build RGB pixels
         led_strip_pixels[j * 3 + 0] = green;
@@ -138,25 +117,56 @@ void Ledstrip::monocolor(uint8_t red, uint8_t green, uint8_t blue)
         led_strip_pixels[j * 3 + 2] = blue;
     }
     ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
-    ESP_ERROR_CHECK(rmt_tx_wait_all_done(led_chan, portMAX_DELAY));
+    //ESP_ERROR_CHECK(rmt_tx_wait_all_done(led_chan, portMAX_DELAY));
+    ESP_LOGI(TAG, "RGB done");
 }
 
-void Ledstrip::rainbow(uint32_t startled, uint32_t bright)
+void Ledstrip::rainbow()
 {
-    uint32_t red = 0;
-    uint32_t green = 0;
-    uint32_t blue = 0;
     uint16_t hue = 0;
-    uint16_t start_rgb = 0;
     
     for (int j = 0; j < EXAMPLE_LED_NUMBERS; j ++) {
         // Build RGB pixels
-        hue = (j - startled) * 360 / EXAMPLE_LED_NUMBERS + start_rgb;
+        hue = (EXAMPLE_LED_NUMBERS + j - startled) % EXAMPLE_LED_NUMBERS * 360 / EXAMPLE_LED_NUMBERS;
         led_strip_hsv2rgb(hue, 100, 100, &red, &green, &blue);
         led_strip_pixels[j * 3 + 0] = green * bright / 100;
         led_strip_pixels[j * 3 + 1] = red * bright / 100;
         led_strip_pixels[j * 3 + 2] = blue * bright / 100;
     }
     ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
-    ESP_ERROR_CHECK(rmt_tx_wait_all_done(led_chan, portMAX_DELAY));
+    //ESP_ERROR_CHECK(rmt_tx_wait_all_done(led_chan, portMAX_DELAY));
+}
+
+void Ledstrip::switchLeds()
+{
+    switch(algorithm)
+    {
+        case ALGO_MONO: monocolor(); break;
+        case ALGO_RAINBOW: rainbow(); break;
+    }
+}
+
+void Ledstrip::loop()
+{
+    TickType_t lastWakeTime = xTaskGetTickCount();
+
+    // Convert 10 ms to ticks
+    const TickType_t period = pdMS_TO_TICKS(TASK_PERIOD_MS);
+
+    for (;;)
+    {
+        if(speed != 0)
+        {
+            loopcnt++;
+            int32_t s = pow(2, (10 - speed));
+            if(loopcnt >= s) {
+                startled = (startled + 1) % EXAMPLE_LED_NUMBERS;
+                switchLeds();       
+                loopcnt = 0;
+            }
+        }
+
+        // Wait until the next cycle
+        vTaskDelayUntil(&lastWakeTime, period);
+    }
 }

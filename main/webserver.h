@@ -4,12 +4,14 @@
 
 using namespace std;
 
-#define NUM_HANDLERS    2
+#define NUM_HANDLERS    3
 
 class Webserver {
     httpd_handle_t server;
     Ledstrip ledstrip;
     httpd_uri_t handlers[NUM_HANDLERS];
+
+    uint32_t loop_delay;
 
 public:
     Webserver();

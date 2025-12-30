@@ -8,9 +8,15 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 </head>
 <body onload="onLoad()">
-		<div id="picker"></div>
         <div id="buttonlist">
+            <button type="button" class="imgbutton" onclick="mono()"><div id="monobutton"></div></button>
             <button type="button" class="imgbutton" onclick="rainbow()"><img class="btnimg" id="rainbow" src="rainbow-svgrepo-com.svg" alt="rainbow"></button>
+        </div>
+		<div id="picker"></div>
+        <div class="slidecontainer">
+            <img class="sliderimg" id="turtle" src="turtle-svgrepo-com.svg" alt="slow">
+            <input type="range" min="0" max="10" value="0" class="slider" id="speedRange" oninput="speedSlide()" />
+            <img class="sliderimg" id="rabbit" src="running_rabbit.svg" alt="fast">
         </div>
 </body>
 </html>

@@ -32,8 +32,11 @@
 #include "Ledstrip.h"
 #include <string>
 #include "webserver.h"
+#include "esp_timer.h"
 
 #define EXAMPLE_HTTP_QUERY_KEY_MAX_LEN  (64)
+
+#define CYCLE_TIME_US   10000
 
 /* A simple example that demonstrates how to create GET and POST
  * handlers for the web server.
@@ -41,8 +44,9 @@
 
 static const char *TAG = "webserver";
 
-#define URI_MONO       "/led"
-#define URI_RAINBOW    "/rainbow"
+#define URI_MONO    "/led"
+#define URI_RAINBOW "/rainbow"
+#define URI_SPEED   "/speed"
 
 Webserver::Webserver()
 {
@@ -196,10 +200,6 @@ static esp_err_t c_led_get_handler(httpd_req_t *req)
 esp_err_t Webserver::led_get_handler(httpd_req_t *req)
 {
     size_t buf_len;
-    uint32_t red = 0;
-    uint32_t green = 0;
-    uint32_t blue = 0;
-    uint32_t bright = 0;
 
     /* Read URL query string length and allocate memory for length + 1,
      * extra byte for null termination */
@@ -212,28 +212,32 @@ esp_err_t Webserver::led_get_handler(httpd_req_t *req)
             char col[EXAMPLE_HTTP_QUERY_KEY_MAX_LEN] = {0};
             /* Get value of expected key from query string */
             if (httpd_query_key_value(buf, "red", col, sizeof(col)) == ESP_OK) {
-                red = strtoul(col, NULL, 10);
+                ledstrip.red = strtoul(col, NULL, 10);
             }
             if (httpd_query_key_value(buf, "green", col, sizeof(col)) == ESP_OK) {
-                green = strtoul(col, NULL, 10);
+                ledstrip.green = strtoul(col, NULL, 10);
             }
             if (httpd_query_key_value(buf, "blue", col, sizeof(col)) == ESP_OK) {
-                blue = strtoul(col, NULL, 10);
+                ledstrip.blue = strtoul(col, NULL, 10);
             }
             if (httpd_query_key_value(buf, "bright", col, sizeof(col)) == ESP_OK) {
-                bright = strtoul(col, NULL, 10);
+                ledstrip.bright = strtoul(col, NULL, 10);
+            }
+            if (httpd_query_key_value(buf, "speed", col, sizeof(col)) == ESP_OK) {
+                ledstrip.speed = strtoul(col, NULL, 10);
             }
         }
     }
 
     if(string(req->uri).find(URI_MONO) != string::npos)
-        ledstrip.monocolor(red, green, blue);
+        ledstrip.algorithm = ALGO_MONO;
 
     else if(string(req->uri).find(URI_RAINBOW) != string::npos)
-        ledstrip.rainbow(0, bright);
+        ledstrip.algorithm = ALGO_RAINBOW;
+
+    ledstrip.switchLeds();
 
     httpd_resp_send(req, NULL, 0);
-
     /* After sending the HTTP response the old HTTP request headers are lost. */
     return ESP_OK;
 }
@@ -305,6 +309,7 @@ esp_err_t Webserver::start(void)
     }
     handlers[0].uri = URI_MONO;
     handlers[1].uri = URI_RAINBOW;
+    handlers[2].uri = URI_SPEED;
 
 #if CONFIG_IDF_TARGET_LINUX
     // Setting port as 8001 when building for Linux. Port 80 can be used only by a privileged user in linux.
@@ -356,7 +361,5 @@ esp_err_t Webserver::stop()
 
 void Webserver::loop()
 { 
-    ESP_LOGI(TAG, "Entering loop");
-    while(1) 
-        sleep(5); 
+    ledstrip.loop();    
 }
