@@ -10,6 +10,7 @@
 #include "led_strip_encoder.h"
 #include "Ledstrip.h"
 #include <cmath>
+#include <errno.h>
 
 #define RMT_LED_STRIP_RESOLUTION_HZ 10000000 // 10MHz resolution, 1 tick = 0.1us (led strip needs a high resolution)
 #define TASK_PERIOD_MS  10
@@ -68,11 +69,51 @@ void led_strip_hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t
     }
 }
 
-Ledstrip::Ledstrip()
+void Ledstrip::saveConfig()
 {
+    FILE* f = fopen(cfgfile_path, "w");
+    if (f == NULL) {
+        ESP_LOGE(TAG, "Failed to open %s for writing", cfgfile_path);
+        return;
+    }
+    if(fwrite(&cfg, 1, sizeof(cfg), f) != sizeof(cfg))
+    {
+        ESP_LOGE(TAG, "Failed to write to %s: %s", cfgfile_path, strerror(errno));
+    }
+    fclose(f);
+}
+
+void Ledstrip::restoreConfig()
+{
+    if(led_strip_pixels) 
+    {
+        delete led_strip_pixels;
+        led_strip_pixels = NULL;
+    }
     memset(&cfg, 0, sizeof(led_config_t));
     cfg.num_leds = EXAMPLE_LED_NUMBERS;
+
+    FILE* f = fopen(cfgfile_path, "r");
+    if (f == NULL) 
+    {
+        ESP_LOGW(TAG, "Failed to open %s. Using default config", cfgfile_path);
+    }
+    else {
+        if(fread(&cfg, 1, sizeof(cfg), f) != sizeof(cfg))
+        {
+            ESP_LOGE(TAG, "Failed to read %s. Using default config", cfgfile_path);
+        }
+        fclose(f);
+    }
+        
     led_strip_pixels = new uint8_t[cfg.num_leds * 3];
+}
+
+Ledstrip::Ledstrip(const char* spiffs_path)
+{
+    snprintf(cfgfile_path, sizeof(cfgfile_path), "%s/config.bin", spiffs_path);
+    memset(&cfg, 0, sizeof(led_config_t));
+    led_strip_pixels = NULL;
 
     led_chan = NULL;
     led_encoder = NULL;
@@ -94,6 +135,7 @@ Ledstrip::~Ledstrip()
 
 esp_err_t Ledstrip::init()
 {
+    restoreConfig();
     ESP_LOGI(TAG, "Create RMT TX channel");
     ESP_ERROR_CHECK(rmt_new_tx_channel(&tx_chan_config, &led_chan));
 

@@ -21,8 +21,8 @@ static const char *TAG = "main";
 
 extern "C" void app_main(void)
 {
-    const char* base_path = "/data";
-    Webserver webserver;
+    const char* spiffs_path = "/data";
+    Webserver webserver(spiffs_path);
 
     //Initialize NVS
     esp_err_t ret = nvs_flash_init();
@@ -41,7 +41,7 @@ extern "C" void app_main(void)
 
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default() );
-    ESP_ERROR_CHECK(mount_storage(base_path));
+    ESP_ERROR_CHECK(mount_storage(spiffs_path));
 
     ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
     wifi_init_sta();
@@ -54,7 +54,7 @@ extern "C" void app_main(void)
         sntp_start();
         /* Start the server for the first time */
         webserver.start();
-        ESP_ERROR_CHECK(start_file_server(webserver.get_server(), base_path));
+        ESP_ERROR_CHECK(start_file_server(webserver.get_server(), spiffs_path));
         webserver.loop();
 
     } else if (bits & WIFI_FAIL_BIT) {

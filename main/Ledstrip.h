@@ -29,11 +29,12 @@ class Ledstrip {
     rmt_transmit_config_t tx_config;
     uint8_t* led_strip_pixels;
     uint32_t loopcnt;
+    char cfgfile_path[32];
 
 public:
     led_config_t cfg;
 
-    Ledstrip();
+    Ledstrip(const char* spiffs_path);
     ~Ledstrip();
     void loop();
 
@@ -41,4 +42,6 @@ public:
     void monocolor();
     void rainbow();
     void switchLeds();
+    void saveConfig();
+    void restoreConfig();
 };

@@ -48,7 +48,8 @@ static const char *TAG = "webserver";
 #define URI_RAINBOW "/rainbow"
 #define URI_SPEED   "/speed"
 
-Webserver::Webserver()
+Webserver::Webserver(const char* spiffs_path) :
+    ledstrip(spiffs_path)
 {
     server = NULL;
 }
@@ -236,6 +237,7 @@ esp_err_t Webserver::led_get_handler(httpd_req_t *req)
         ledstrip.cfg.algorithm = ALGO_RAINBOW;
 
     ledstrip.switchLeds();
+    ledstrip.saveConfig();
 
     httpd_resp_send(req, NULL, 0);
     /* After sending the HTTP response the old HTTP request headers are lost. */

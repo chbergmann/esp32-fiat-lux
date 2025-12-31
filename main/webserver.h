@@ -14,7 +14,7 @@ class Webserver {
     uint32_t loop_delay;
 
 public:
-    Webserver();
+    Webserver(const char* spiffs_path);
     ~Webserver();
 
     esp_err_t start();
