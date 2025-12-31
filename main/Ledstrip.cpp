@@ -70,13 +70,9 @@ void led_strip_hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t
 
 Ledstrip::Ledstrip()
 {
-    red = 0;
-    green = 0;
-    blue = 0;
-    bright = 100;
-    startled = 0;
-    loopcnt = 0;
-    algorithm = ALGO_MONO;
+    memset(&cfg, 0, sizeof(led_config_t));
+    cfg.num_leds = EXAMPLE_LED_NUMBERS;
+    led_strip_pixels = new uint8_t[cfg.num_leds * 3];
 
     led_chan = NULL;
     led_encoder = NULL;
@@ -88,6 +84,12 @@ Ledstrip::Ledstrip()
     tx_chan_config.resolution_hz = RMT_LED_STRIP_RESOLUTION_HZ;
     tx_chan_config.trans_queue_depth = 4; // set the number of transactions that can be pending in the background
     tx_config.loop_count = 0; // no transfer loop
+}
+
+Ledstrip::~Ledstrip()
+{
+    if(led_strip_pixels)
+        delete led_strip_pixels;
 }
 
 esp_err_t Ledstrip::init()
@@ -109,37 +111,35 @@ esp_err_t Ledstrip::init()
 
 void Ledstrip::monocolor()
 {
-    ESP_LOGI(TAG, "R=%d G=%d B=%d", red, green, blue);
-    for (int j = 0; j < EXAMPLE_LED_NUMBERS; j ++) {
+    //ESP_LOGI(TAG, "R=%d G=%d B=%d", cfg.red, cfg.green, cfg.blue);
+    for (int j = 0; j < cfg.num_leds; j ++) {
         // Build RGB pixels
-        led_strip_pixels[j * 3 + 0] = green;
-        led_strip_pixels[j * 3 + 1] = red;
-        led_strip_pixels[j * 3 + 2] = blue;
+        led_strip_pixels[j * 3 + 0] = cfg.green;
+        led_strip_pixels[j * 3 + 1] = cfg.red;
+        led_strip_pixels[j * 3 + 2] = cfg.blue;
     }
-    ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
-    //ESP_ERROR_CHECK(rmt_tx_wait_all_done(led_chan, portMAX_DELAY));
-    ESP_LOGI(TAG, "RGB done");
+    ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, cfg.num_leds*3, &tx_config));
 }
 
 void Ledstrip::rainbow()
 {
     uint16_t hue = 0;
+    uint32_t red, green, blue;
     
-    for (int j = 0; j < EXAMPLE_LED_NUMBERS; j ++) {
+    for (int j = 0; j < cfg.num_leds; j ++) {
         // Build RGB pixels
-        hue = (EXAMPLE_LED_NUMBERS + j - startled) % EXAMPLE_LED_NUMBERS * 360 / EXAMPLE_LED_NUMBERS;
+        hue = (cfg.num_leds + j - cfg.startled) % cfg.num_leds * 360 / cfg.num_leds;
         led_strip_hsv2rgb(hue, 100, 100, &red, &green, &blue);
-        led_strip_pixels[j * 3 + 0] = green * bright / 100;
-        led_strip_pixels[j * 3 + 1] = red * bright / 100;
-        led_strip_pixels[j * 3 + 2] = blue * bright / 100;
+        led_strip_pixels[j * 3 + 0] = green * cfg.bright / 100;
+        led_strip_pixels[j * 3 + 1] = red * cfg.bright / 100;
+        led_strip_pixels[j * 3 + 2] = blue * cfg.bright / 100;
     }
-    ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
-    //ESP_ERROR_CHECK(rmt_tx_wait_all_done(led_chan, portMAX_DELAY));
+    ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, cfg.num_leds*3, &tx_config));
 }
 
 void Ledstrip::switchLeds()
 {
-    switch(algorithm)
+    switch(cfg.algorithm)
     {
         case ALGO_MONO: monocolor(); break;
         case ALGO_RAINBOW: rainbow(); break;
@@ -155,12 +155,12 @@ void Ledstrip::loop()
 
     for (;;)
     {
-        if(speed != 0)
+        if(cfg.speed != 0)
         {
             loopcnt++;
-            int32_t s = pow(2, (10 - speed));
+            int32_t s = pow(2, (10 - cfg.speed));
             if(loopcnt >= s) {
-                startled = (startled + 1) % EXAMPLE_LED_NUMBERS;
+                cfg.startled = (cfg.startled + 1) % cfg.num_leds;
                 switchLeds();       
                 loopcnt = 0;
             }

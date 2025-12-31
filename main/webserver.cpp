@@ -212,28 +212,28 @@ esp_err_t Webserver::led_get_handler(httpd_req_t *req)
             char col[EXAMPLE_HTTP_QUERY_KEY_MAX_LEN] = {0};
             /* Get value of expected key from query string */
             if (httpd_query_key_value(buf, "red", col, sizeof(col)) == ESP_OK) {
-                ledstrip.red = strtoul(col, NULL, 10);
+                ledstrip.cfg.red = strtoul(col, NULL, 10);
             }
             if (httpd_query_key_value(buf, "green", col, sizeof(col)) == ESP_OK) {
-                ledstrip.green = strtoul(col, NULL, 10);
+                ledstrip.cfg.green = strtoul(col, NULL, 10);
             }
             if (httpd_query_key_value(buf, "blue", col, sizeof(col)) == ESP_OK) {
-                ledstrip.blue = strtoul(col, NULL, 10);
+                ledstrip.cfg.blue = strtoul(col, NULL, 10);
             }
             if (httpd_query_key_value(buf, "bright", col, sizeof(col)) == ESP_OK) {
-                ledstrip.bright = strtoul(col, NULL, 10);
+                ledstrip.cfg.bright = strtoul(col, NULL, 10);
             }
             if (httpd_query_key_value(buf, "speed", col, sizeof(col)) == ESP_OK) {
-                ledstrip.speed = strtoul(col, NULL, 10);
+                ledstrip.cfg.speed = strtoul(col, NULL, 10);
             }
         }
     }
 
     if(string(req->uri).find(URI_MONO) != string::npos)
-        ledstrip.algorithm = ALGO_MONO;
+        ledstrip.cfg.algorithm = ALGO_MONO;
 
     else if(string(req->uri).find(URI_RAINBOW) != string::npos)
-        ledstrip.algorithm = ALGO_RAINBOW;
+        ledstrip.cfg.algorithm = ALGO_RAINBOW;
 
     ledstrip.switchLeds();
 
