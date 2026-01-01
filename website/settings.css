@@ -1,0 +1,11 @@
+#settingspage { width: 320px; }
+.h1list { width:100%; display: flex; flex-direction: row; justify-content: space-between; margin-bottom:1em; }
+.imgbutton { margin: 1em; height:2em; width:2em; }
+.buttonlist { width:100%; display: flex; flex-direction: row; justify-content: space-around; }
+.btnimg { height:3em; }
+.gear { height: 2em; }
+.favicon { height: 2em; }
+.hidden { display:none; }
+.active { border: double; border-radius: 5px; padding:2px }
+.inactive { border: none; padding:7px }
+.setline { width:100%; }

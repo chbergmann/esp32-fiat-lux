@@ -33,6 +33,7 @@
 #include <string>
 #include "webserver.h"
 #include "esp_timer.h"
+#include "file_server.h"
 
 #define EXAMPLE_HTTP_QUERY_KEY_MAX_LEN  (64)
 
@@ -50,12 +51,14 @@ static const char* SITES[] = {
     "/speed",
     "/led",
     "/values",
+    "/set",
 };
 
-Webserver::Webserver(const char* spiffs_path) :
-    ledstrip(spiffs_path)
+Webserver::Webserver(const char* spffs_path) :
+    ledstrip(spffs_path)
 {
     server = NULL;
+    spiffs_path = spffs_path;
 }
 
 Webserver::~Webserver()
@@ -193,7 +196,6 @@ static void httpd_register_basic_auth(httpd_handle_t server)
 #endif
 
 
-/* An HTTP GET handler */
 static esp_err_t c_led_get_handler(httpd_req_t *req)
 {
     ESP_LOGI(TAG, "GET %s", req->uri);
@@ -201,6 +203,19 @@ static esp_err_t c_led_get_handler(httpd_req_t *req)
     return webserver->led_get_handler(req);
 }
 
+static esp_err_t c_led_set_handler(httpd_req_t *req)
+{
+    ESP_LOGI(TAG, "GET %s", req->uri);
+    Webserver* webserver = (Webserver*)req->user_ctx;
+    return webserver->led_set_handler(req);
+}
+
+static esp_err_t c_led_val_handler(httpd_req_t *req)
+{
+    ESP_LOGI(TAG, "GET %s", req->uri);
+    Webserver* webserver = (Webserver*)req->user_ctx;
+    return webserver->led_val_handler(req);
+}
 
 
 /* An HTTP GET handler */
@@ -242,15 +257,6 @@ esp_err_t Webserver::led_get_handler(httpd_req_t *req)
     else if(string(req->uri).find(SITES[URI_RAINBOW]) != string::npos)
         ledstrip.cfg.algorithm = ALGO_RAINBOW;
 
-    else if(string(req->uri).find(SITES[URI_VALUES]) != string::npos)
-    {
-        string json = ledstrip.to_json(ledstrip.cfg);
-        
-        httpd_resp_set_type(req, "application/json");
-        httpd_resp_send(req, json.c_str(), json.length());
-        return ESP_OK;
-    }
-
     ledstrip.switchLeds();
     ledstrip.saveConfig();
 
@@ -259,6 +265,47 @@ esp_err_t Webserver::led_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+
+/* An HTTP GET handler */
+esp_err_t Webserver::led_set_handler(httpd_req_t *req)
+{
+    size_t buf_len;
+
+    /* Read URL query string length and allocate memory for length + 1,
+     * extra byte for null termination */
+    buf_len = httpd_req_get_url_query_len(req) + 1;
+    if (buf_len > 1) {
+        char buf[buf_len];
+        ESP_RETURN_ON_FALSE(buf, ESP_ERR_NO_MEM, TAG, "buffer alloc failed");
+        if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
+            ESP_LOGI(TAG, "Found URL query => %s", buf);
+            char col[EXAMPLE_HTTP_QUERY_KEY_MAX_LEN] = {0};
+            /* Get value of expected key from query string */
+            if (httpd_query_key_value(buf, "nr_leds", col, sizeof(col)) == ESP_OK) {
+                ledstrip.cfg.num_leds = strtoul(col, NULL, 10);
+            }
+            if (httpd_query_key_value(buf, "rotate", col, sizeof(col)) == ESP_OK) {
+                ledstrip.cfg.counterclock = string(col) == "left";
+            }
+        }
+    }
+
+    ledstrip.saveConfig();
+
+    string redirect = "<meta http-equiv=\"refresh\" content=\"0; url=/index.html\" />";
+    httpd_resp_send(req, redirect.c_str(), redirect.length());
+    return ESP_OK;
+}
+
+
+esp_err_t Webserver::led_val_handler(httpd_req_t *req)
+{
+    string json = ledstrip.to_json(ledstrip.cfg);
+    
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_send(req, json.c_str(), json.length());
+    return ESP_OK;
+}
 
 /* This handler allows the custom error handling functionality to be
  * tested from client side. For that, when a PUT request 0 is sent to
@@ -325,6 +372,8 @@ esp_err_t Webserver::start(void)
         handlers[i].user_ctx  = this;
         handlers[i].uri = SITES[i];
     }
+    handlers[URI_VALUES].handler   = c_led_val_handler;
+    handlers[URI_SET].handler   = c_led_set_handler;
 
 #if CONFIG_IDF_TARGET_LINUX
     // Setting port as 8001 when building for Linux. Port 80 can be used only by a privileged user in linux.

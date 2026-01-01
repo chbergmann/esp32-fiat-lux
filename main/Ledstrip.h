@@ -6,7 +6,6 @@
 using namespace std;
 
 #define RMT_LED_STRIP_GPIO_NUM      CONFIG_LED_STRIP_GPIO_NUM
-#define EXAMPLE_LED_NUMBERS         CONFIG_LED_NUMBERS
 
 typedef enum {
     ALGO_MONO,
@@ -16,13 +15,14 @@ typedef enum {
 typedef struct 
 {
     uint32_t num_leds;
+    uint32_t led1;
+    bool counterclock;
     ledstrip_algo_t algorithm;
     uint32_t red;
     uint32_t green;
     uint32_t blue;
     uint32_t bright;
     uint32_t speed;
-    uint32_t startled;
 } led_config_t;
 
 class Ledstrip {
@@ -33,8 +33,11 @@ class Ledstrip {
     uint8_t* led_strip_pixels;
     uint32_t loopcnt;
     char cfgfile_path[32];
+    uint32_t startled;
 
     string to_json(const string& tag, uint32_t nr);
+    void show();
+
 public:
     led_config_t cfg;
 

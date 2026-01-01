@@ -10,6 +10,7 @@ enum {
     URI_SPEED,
     URI_LED,
     URI_VALUES,
+    URI_SET,
     NUM_HANDLERS
 };
 
@@ -19,6 +20,7 @@ class Webserver {
     httpd_uri_t handlers[NUM_HANDLERS];
 
     uint32_t loop_delay;
+    const char* spiffs_path;
 
 public:
     Webserver(const char* spiffs_path);
@@ -27,6 +29,8 @@ public:
     esp_err_t start();
     esp_err_t stop();
     esp_err_t led_get_handler(httpd_req_t *req);
+    esp_err_t led_set_handler(httpd_req_t *req);
+    esp_err_t led_val_handler(httpd_req_t *req);
     httpd_handle_t get_server() { return server; }
     void loop();
 };

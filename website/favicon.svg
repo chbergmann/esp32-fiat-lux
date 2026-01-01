@@ -2,13 +2,13 @@
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
 
 <svg
-   width="48mm"
-   height="48mm"
-   viewBox="0 0 48 48"
+   width="48.011539mm"
+   height="14.094871mm"
+   viewBox="0 0 48.011539 14.094871"
    version="1.1"
    id="svg1"
    inkscape:version="1.4.2 (ebf0e940d0, 2025-05-08)"
-   sodipodi:docname="leds.svg"
+   sodipodi:docname="favicon.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -25,8 +25,8 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      inkscape:zoom="2.9253865"
-     inkscape:cx="178.7798"
-     inkscape:cy="141.34884"
+     inkscape:cx="178.43796"
+     inkscape:cy="75.374656"
      inkscape:window-width="2048"
      inkscape:window-height="1208"
      inkscape:window-x="0"
@@ -109,7 +109,7 @@
      inkscape:label="Ebene 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(-27.363266,-31.606142)">
+     transform="translate(-27.453708,-49.061813)">
     <rect
        style="fill:#ffffff;stroke:#000000;stroke-width:0.741059;stroke-dasharray:none"
        id="rect1"

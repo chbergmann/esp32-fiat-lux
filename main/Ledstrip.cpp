@@ -14,8 +14,9 @@
 
 #define RMT_LED_STRIP_RESOLUTION_HZ 10000000 // 10MHz resolution, 1 tick = 0.1us (led strip needs a high resolution)
 #define TASK_PERIOD_MS  10
-static const char *TAG = "leds";
+#define EXAMPLE_LED_NUMBERS         CONFIG_LED_NUMBERS
 
+static const char *TAG = "leds";
 
 /**
  * @brief Simple helper function, converting HSV color space to RGB color space
@@ -118,13 +119,20 @@ string Ledstrip::to_json(led_config_t& cfg)
         to_json("green", cfg.green) + "," + 
         to_json("blue", cfg.blue) + "," + 
         to_json("speed", cfg.speed) + "," + 
-        to_json("bright", cfg.bright) + 
+        to_json("bright", cfg.bright) + "," +
+        to_json("nr_leds", cfg.num_leds) + "," +
+        to_json("led1", cfg.led1) + "," +
+        "\"rotate\":" + (cfg.counterclock ? "\"left\"" : "\"right\"") +
         "}";
 }
 
 string Ledstrip::to_json(const string &tag, uint32_t nr)
 {
     return "\"" + tag + "\":" + to_string(nr);
+}
+
+void Ledstrip::show()
+{
 }
 
 Ledstrip::Ledstrip(const char *spiffs_path)
@@ -178,7 +186,6 @@ void Ledstrip::monocolor()
         led_strip_pixels[j * 3 + 1] = cfg.red;
         led_strip_pixels[j * 3 + 2] = cfg.blue;
     }
-    ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, cfg.num_leds*3, &tx_config));
 }
 
 void Ledstrip::rainbow()
@@ -188,13 +195,12 @@ void Ledstrip::rainbow()
     
     for (int j = 0; j < cfg.num_leds; j ++) {
         // Build RGB pixels
-        hue = (cfg.num_leds + j - cfg.startled) % cfg.num_leds * 360 / cfg.num_leds;
+        hue = (cfg.num_leds + j - startled) % cfg.num_leds * 360 / cfg.num_leds;
         led_strip_hsv2rgb(hue, 100, 100, &red, &green, &blue);
         led_strip_pixels[j * 3 + 0] = green * cfg.bright / 100;
         led_strip_pixels[j * 3 + 1] = red * cfg.bright / 100;
         led_strip_pixels[j * 3 + 2] = blue * cfg.bright / 100;
     }
-    ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, cfg.num_leds*3, &tx_config));
 }
 
 void Ledstrip::switchLeds()
@@ -203,6 +209,23 @@ void Ledstrip::switchLeds()
     {
         case ALGO_MONO: monocolor(); break;
         case ALGO_RAINBOW: rainbow(); break;
+    }
+
+    if(!cfg.counterclock)
+    {
+        ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, cfg.num_leds*3, &tx_config));
+    }
+    else
+    {
+        uint8_t rev_pixels[cfg.num_leds*3];
+        for(int i=0; i<cfg.num_leds; i++)
+        {
+            rev_pixels[i * 3 + 0] = led_strip_pixels[cfg.num_leds*3 - (i * 3) - 3];
+            rev_pixels[i * 3 + 1] = led_strip_pixels[cfg.num_leds*3 - (i * 3) - 2];
+            rev_pixels[i * 3 + 2] = led_strip_pixels[cfg.num_leds*3 - (i * 3) - 1];
+        }
+
+        ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, rev_pixels, cfg.num_leds*3, &tx_config));
     }
 }
 
@@ -220,7 +243,7 @@ void Ledstrip::loop()
             loopcnt++;
             int32_t s = pow(2, (10 - cfg.speed));
             if(loopcnt >= s) {
-                cfg.startled = (cfg.startled + 1) % cfg.num_leds;
+                startled = (startled + 1) % cfg.num_leds;
                 switchLeds();       
                 loopcnt = 0;
             }
