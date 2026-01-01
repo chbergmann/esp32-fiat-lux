@@ -4,7 +4,14 @@
 
 using namespace std;
 
-#define NUM_HANDLERS    3
+enum {
+    URI_MONO = 0,
+    URI_RAINBOW,
+    URI_SPEED,
+    URI_LED,
+    URI_VALUES,
+    NUM_HANDLERS
+};
 
 class Webserver {
     httpd_handle_t server;

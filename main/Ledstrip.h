@@ -1,6 +1,9 @@
 #pragma once
 
 #include "driver/rmt_tx.h"
+#include <string>
+
+using namespace std;
 
 #define RMT_LED_STRIP_GPIO_NUM      CONFIG_LED_STRIP_GPIO_NUM
 #define EXAMPLE_LED_NUMBERS         CONFIG_LED_NUMBERS
@@ -31,6 +34,7 @@ class Ledstrip {
     uint32_t loopcnt;
     char cfgfile_path[32];
 
+    string to_json(const string& tag, uint32_t nr);
 public:
     led_config_t cfg;
 
@@ -44,4 +48,6 @@ public:
     void switchLeds();
     void saveConfig();
     void restoreConfig();
+
+    string to_json(led_config_t& cfg);
 };

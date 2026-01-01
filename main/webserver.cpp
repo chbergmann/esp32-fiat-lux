@@ -44,9 +44,13 @@
 
 static const char *TAG = "webserver";
 
-#define URI_MONO    "/led"
-#define URI_RAINBOW "/rainbow"
-#define URI_SPEED   "/speed"
+static const char* SITES[] = {
+    "/mono",
+    "/rainbow",
+    "/speed",
+    "/led",
+    "/values",
+};
 
 Webserver::Webserver(const char* spiffs_path) :
     ledstrip(spiffs_path)
@@ -197,6 +201,8 @@ static esp_err_t c_led_get_handler(httpd_req_t *req)
     return webserver->led_get_handler(req);
 }
 
+
+
 /* An HTTP GET handler */
 esp_err_t Webserver::led_get_handler(httpd_req_t *req)
 {
@@ -230,11 +236,20 @@ esp_err_t Webserver::led_get_handler(httpd_req_t *req)
         }
     }
 
-    if(string(req->uri).find(URI_MONO) != string::npos)
+    if(string(req->uri).find(SITES[URI_MONO]) != string::npos)
         ledstrip.cfg.algorithm = ALGO_MONO;
 
-    else if(string(req->uri).find(URI_RAINBOW) != string::npos)
+    else if(string(req->uri).find(SITES[URI_RAINBOW]) != string::npos)
         ledstrip.cfg.algorithm = ALGO_RAINBOW;
+
+    else if(string(req->uri).find(SITES[URI_VALUES]) != string::npos)
+    {
+        string json = ledstrip.to_json(ledstrip.cfg);
+        
+        httpd_resp_set_type(req, "application/json");
+        httpd_resp_send(req, json.c_str(), json.length());
+        return ESP_OK;
+    }
 
     ledstrip.switchLeds();
     ledstrip.saveConfig();
@@ -308,10 +323,8 @@ esp_err_t Webserver::start(void)
         handlers[i].method = HTTP_GET;
         handlers[i].handler   = c_led_get_handler;
         handlers[i].user_ctx  = this;
+        handlers[i].uri = SITES[i];
     }
-    handlers[0].uri = URI_MONO;
-    handlers[1].uri = URI_RAINBOW;
-    handlers[2].uri = URI_SPEED;
 
 #if CONFIG_IDF_TARGET_LINUX
     // Setting port as 8001 when building for Linux. Port 80 can be used only by a privileged user in linux.

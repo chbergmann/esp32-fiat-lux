@@ -1,4 +1,4 @@
-body { width: 300px; }
+#main { text-align:center; }
 
 #picker { margin: 4px auto 0 !important; max-width: max-content; }
 @media screen and (orientation:portrait) { 
@@ -46,4 +46,4 @@ body { width: 300px; }
   cursor: pointer;
 }
 .sliderimg { height: 32px; border: 0; }
-.slidecontainer { display: flex; flex-direction: row; margin-top:1em; }
+.slidecontainer { display: flex; flex-direction: row; margin-top:1em; width:100% }

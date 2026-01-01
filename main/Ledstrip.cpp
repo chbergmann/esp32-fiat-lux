@@ -92,6 +92,8 @@ void Ledstrip::restoreConfig()
     }
     memset(&cfg, 0, sizeof(led_config_t));
     cfg.num_leds = EXAMPLE_LED_NUMBERS;
+    cfg.bright = 100;
+    cfg.red = 255;
 
     FILE* f = fopen(cfgfile_path, "r");
     if (f == NULL) 
@@ -109,7 +111,23 @@ void Ledstrip::restoreConfig()
     led_strip_pixels = new uint8_t[cfg.num_leds * 3];
 }
 
-Ledstrip::Ledstrip(const char* spiffs_path)
+string Ledstrip::to_json(led_config_t& cfg)
+{
+    return "{" + 
+        to_json("red", cfg.red) + "," + 
+        to_json("green", cfg.green) + "," + 
+        to_json("blue", cfg.blue) + "," + 
+        to_json("speed", cfg.speed) + "," + 
+        to_json("bright", cfg.bright) + 
+        "}";
+}
+
+string Ledstrip::to_json(const string &tag, uint32_t nr)
+{
+    return "\"" + tag + "\":" + to_string(nr);
+}
+
+Ledstrip::Ledstrip(const char *spiffs_path)
 {
     snprintf(cfgfile_path, sizeof(cfgfile_path), "%s/config.bin", spiffs_path);
     memset(&cfg, 0, sizeof(led_config_t));
