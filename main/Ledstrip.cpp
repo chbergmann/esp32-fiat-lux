@@ -278,19 +278,24 @@ void Ledstrip::loop()
 
     for (;;)
     {
-        switchLeds();       
+        switchLeds();  
+        period = 1000;     
 
-        loopcnt++;
-        int32_t s = pow(2, (10 - cfg.speed));
-        if(loopcnt >= s)
+        if(cfg.speed > 0)
+        {
+            loopcnt++;
+            int32_t s = pow(2, (10 - cfg.speed));
+            if(loopcnt >= s)
+                loopcnt = 0;
+                
+            // Wait until the next cycle
+            if(cfg.algorithm == ALGO_RAINBOW)
+                period = TASK_PERIOD_MS;
+        }
+        else {
             loopcnt = 0;
+        }
             
-        // Wait until the next cycle
-        if(cfg.algorithm == ALGO_RAINBOW)
-            period = TASK_PERIOD_MS;
-        else
-            period = 1000;
-
         vTaskDelayUntil(&lastWakeTime, pdMS_TO_TICKS(period));
     }
 }

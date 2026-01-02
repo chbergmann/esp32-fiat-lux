@@ -19,22 +19,22 @@
    id="defs3"><linearGradient
      id="linearGradient4"
      inkscape:collect="always"><stop
-       style="stop-color:#ff0000;stop-opacity:1;"
+       style="stop-color:#ff0000;stop-opacity:0.80000001;"
        offset="0"
        id="stop4" /><stop
-       style="stop-color:#ffff00;stop-opacity:1;"
+       style="stop-color:#ffff00;stop-opacity:0.80000001;"
        offset="0.5"
        id="stop6" /><stop
-       style="stop-color:#00ff01;stop-opacity:1;"
+       style="stop-color:#00ff01;stop-opacity:0.80000001;"
        offset="0.625"
        id="stop8" /><stop
-       style="stop-color:#00ffff;stop-opacity:1;"
+       style="stop-color:#00ffff;stop-opacity:0.80000001;"
        offset="0.6875"
        id="stop9" /><stop
-       style="stop-color:#0000ff;stop-opacity:1;"
+       style="stop-color:#0000ff;stop-opacity:0.80000001;"
        offset="0.75"
        id="stop7" /><stop
-       style="stop-color:#ff00ff;stop-opacity:1;"
+       style="stop-color:#ff00ff;stop-opacity:0.80000001;"
        offset="1"
        id="stop5" /></linearGradient><linearGradient
      inkscape:collect="always"
@@ -54,7 +54,7 @@
    inkscape:pagecheckerboard="0"
    inkscape:deskcolor="#d1d1d1"
    inkscape:zoom="1.19625"
-   inkscape:cx="399.58203"
+   inkscape:cx="400"
    inkscape:cy="400"
    inkscape:window-width="2048"
    inkscape:window-height="1208"
@@ -63,12 +63,14 @@
    inkscape:window-maximized="1"
    inkscape:current-layer="Layer_1" />
 <rect
-   style="fill:url(#linearGradient5);stroke:#d4aa00;stroke-width:0.302362"
+   style="fill:url(#linearGradient5);stroke:#d4aa00;stroke-width:0;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none"
    id="rect4"
    width="64.200623"
    height="64"
    x="0"
-   y="0" /><g
+   y="0"
+   rx="5.1199999"
+   ry="5.1199999" /><g
    id="g3">
 	<path
    fill="#231F20"
