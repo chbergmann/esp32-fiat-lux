@@ -47,6 +47,7 @@ static const char *TAG = "webserver";
 
 static const char* SITES[] = {
     "/mono",
+    "/rainbowclk",
     "/rainbow",
     "/speed",
     "/led",
@@ -253,6 +254,9 @@ esp_err_t Webserver::led_get_handler(httpd_req_t *req)
 
     if(string(req->uri).find(SITES[URI_MONO]) != string::npos)
         ledstrip.cfg.algorithm = ALGO_MONO;
+
+    else if(string(req->uri).find(SITES[URI_RAINBOWCLK]) != string::npos)
+        ledstrip.cfg.algorithm = ALGO_RAINBOWCLK;
 
     else if(string(req->uri).find(SITES[URI_RAINBOW]) != string::npos)
         ledstrip.cfg.algorithm = ALGO_RAINBOW;

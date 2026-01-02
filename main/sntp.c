@@ -101,7 +101,6 @@ void sntp_start(void)
         // update 'now' variable with current time
         time(&now);
     }
-#endif
 
     if (sntp_get_sync_mode() == SNTP_SYNC_MODE_SMOOTH) {
         struct timeval outdelta;
@@ -114,6 +113,7 @@ void sntp_start(void)
             vTaskDelay(2000 / portTICK_PERIOD_MS);
         }
     }
+#endif
 }
 
 static void print_servers(void)

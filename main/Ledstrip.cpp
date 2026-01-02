@@ -11,6 +11,8 @@
 #include "Ledstrip.h"
 #include <cmath>
 #include <errno.h>
+#include <time.h>
+#include <sys/time.h>
 
 #define RMT_LED_STRIP_RESOLUTION_HZ 10000000 // 10MHz resolution, 1 tick = 0.1us (led strip needs a high resolution)
 #define TASK_PERIOD_MS  10
@@ -200,10 +202,41 @@ void Ledstrip::rainbow()
     uint16_t hue = 0;
     uint32_t red, green, blue;
     
+    if(loopcnt == 0)
+    {
+        for (int j = 0; j < cfg.num_leds; j ++) {
+            // Build RGB pixels
+            hue = (cfg.num_leds + j - startled) % cfg.num_leds * 360 / cfg.num_leds;
+            led_strip_hsv2rgb(hue, 100, 100, &red, &green, &blue);
+            led_strip_pixels[j * 3 + 0] = green * cfg.bright / 100;
+            led_strip_pixels[j * 3 + 1] = red * cfg.bright / 100;
+            led_strip_pixels[j * 3 + 2] = blue * cfg.bright / 100;
+        }
+    }
+    else if(loopcnt == 1) 
+    {
+        startled = (startled + 1) % cfg.num_leds;    
+    }
+}
+
+void Ledstrip::rainbow_clock()
+{
+    uint16_t hue = 0;
+    uint32_t red, green, blue;
+
+    time_t now;
+    struct tm timeinfo;
+    char strftime_buf[64];
+    time(&now);
+
+    localtime_r(&now, &timeinfo);
+    strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+    hue = now * 360 / (24*60*60) % 360;
+    ESP_LOGI(TAG, "%s hue %d", strftime_buf, hue);
+    led_strip_hsv2rgb(hue, 100, 100, &red, &green, &blue);
+    
     for (int j = 0; j < cfg.num_leds; j ++) {
         // Build RGB pixels
-        hue = (cfg.num_leds + j - startled) % cfg.num_leds * 360 / cfg.num_leds;
-        led_strip_hsv2rgb(hue, 100, 100, &red, &green, &blue);
         led_strip_pixels[j * 3 + 0] = green * cfg.bright / 100;
         led_strip_pixels[j * 3 + 1] = red * cfg.bright / 100;
         led_strip_pixels[j * 3 + 2] = blue * cfg.bright / 100;
@@ -216,6 +249,7 @@ void Ledstrip::switchLeds()
     {
         case ALGO_MONO: monocolor(); break;
         case ALGO_RAINBOW: rainbow(); break;
+        case ALGO_RAINBOWCLK: rainbow_clock(); break;
     }
 
     if(!cfg.counterclock)
@@ -240,22 +274,23 @@ void Ledstrip::loop()
     TickType_t lastWakeTime = xTaskGetTickCount();
 
     // Convert 10 ms to ticks
-    const TickType_t period = pdMS_TO_TICKS(TASK_PERIOD_MS);
+    TickType_t period;
 
     for (;;)
     {
-        if(cfg.speed != 0)
-        {
-            loopcnt++;
-            int32_t s = pow(2, (10 - cfg.speed));
-            if(loopcnt >= s) {
-                startled = (startled + 1) % cfg.num_leds;
-                switchLeds();       
-                loopcnt = 0;
-            }
-        }
+        switchLeds();       
 
+        loopcnt++;
+        int32_t s = pow(2, (10 - cfg.speed));
+        if(loopcnt >= s)
+            loopcnt = 0;
+            
         // Wait until the next cycle
-        vTaskDelayUntil(&lastWakeTime, period);
+        if(cfg.algorithm == ALGO_RAINBOW)
+            period = TASK_PERIOD_MS;
+        else
+            period = 1000;
+
+        vTaskDelayUntil(&lastWakeTime, pdMS_TO_TICKS(period));
     }
 }

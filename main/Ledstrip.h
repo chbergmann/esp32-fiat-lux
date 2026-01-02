@@ -9,7 +9,8 @@ using namespace std;
 
 typedef enum {
     ALGO_MONO,
-    ALGO_RAINBOW
+    ALGO_RAINBOW,
+    ALGO_RAINBOWCLK,
 } ledstrip_algo_t;
 
 typedef struct 
@@ -49,6 +50,7 @@ public:
     esp_err_t init();
     void monocolor();
     void rainbow();
+    void rainbow_clock();
     void switchLeds();
     void saveConfig();
     void restoreConfig();

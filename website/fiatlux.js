@@ -83,6 +83,12 @@ function rainbow()
     trigger_restapi(url)
 }
 
+function rainbowclk()
+{
+    const url = `/rainbowclk?bright=${mycolor.value}`;
+    trigger_restapi(url)
+}
+
 function speedSlide() 
 {
     var slider = document.getElementById("speedRange");

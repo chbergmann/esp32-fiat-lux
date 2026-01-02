@@ -6,6 +6,7 @@ using namespace std;
 
 enum {
     URI_MONO = 0,
+    URI_RAINBOWCLK,
     URI_RAINBOW,
     URI_SPEED,
     URI_LED,
