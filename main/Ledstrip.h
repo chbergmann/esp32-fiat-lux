@@ -31,6 +31,7 @@ class Ledstrip {
     rmt_encoder_handle_t led_encoder;
     rmt_transmit_config_t tx_config;
     uint8_t* led_strip_pixels;
+    uint8_t* rev_pixels;
     uint32_t loopcnt;
     char cfgfile_path[32];
     uint32_t startled;

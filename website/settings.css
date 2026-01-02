@@ -1,4 +1,9 @@
-#settingspage { width: 320px; }
+@media screen and (orientation:portrait) { 
+  #settingspage { width:50%; text-align:center; } 
+}
+@media screen and (orientation:landscape) {
+  #settingspage { width:30%; text-align:center; } 
+}
 .h1list { width:100%; display: flex; flex-direction: row; justify-content: space-between; margin-bottom:1em; }
 .imgbutton { margin: 1em; height:2em; width:2em; }
 .buttonlist { width:100%; display: flex; flex-direction: row; justify-content: space-around; }

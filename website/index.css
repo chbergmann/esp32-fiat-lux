@@ -8,7 +8,7 @@
   #main { width:320px; } 
 }
 .buttonlist { width:100%; display: flex; flex-direction: row; justify-content: space-around; }
-.imgbutton { margin: 1em; height:3em; width:4em; }
+.imgbutton { margin: 1em; height:3.5em; width:4em; }
 .btnimg { height:3em; }
 .slider {
   -webkit-appearance: none;

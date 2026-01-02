@@ -90,6 +90,8 @@ void Ledstrip::restoreConfig()
     {
         delete led_strip_pixels;
         led_strip_pixels = NULL;
+        delete rev_pixels;
+        rev_pixels = NULL;
     }
     memset(&cfg, 0, sizeof(led_config_t));
     cfg.num_leds = EXAMPLE_LED_NUMBERS;
@@ -110,6 +112,7 @@ void Ledstrip::restoreConfig()
     }
         
     led_strip_pixels = new uint8_t[cfg.num_leds * 3];
+    rev_pixels = new uint8_t[cfg.num_leds * 3];
 }
 
 string Ledstrip::to_json(led_config_t& cfg)
@@ -140,6 +143,7 @@ Ledstrip::Ledstrip(const char *spiffs_path)
     snprintf(cfgfile_path, sizeof(cfgfile_path), "%s/config.bin", spiffs_path);
     memset(&cfg, 0, sizeof(led_config_t));
     led_strip_pixels = NULL;
+    rev_pixels = NULL;
 
     led_chan = NULL;
     led_encoder = NULL;
@@ -157,6 +161,9 @@ Ledstrip::~Ledstrip()
 {
     if(led_strip_pixels)
         delete led_strip_pixels;
+
+    if(rev_pixels)
+        delete rev_pixels;
 }
 
 esp_err_t Ledstrip::init()
@@ -217,7 +224,6 @@ void Ledstrip::switchLeds()
     }
     else
     {
-        uint8_t rev_pixels[cfg.num_leds*3];
         for(int i=0; i<cfg.num_leds; i++)
         {
             rev_pixels[i * 3 + 0] = led_strip_pixels[cfg.num_leds*3 - (i * 3) - 3];
