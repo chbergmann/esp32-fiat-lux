@@ -11,6 +11,7 @@ typedef enum {
     ALGO_MONO,
     ALGO_RAINBOW,
     ALGO_RAINBOWCLK,
+    ALGO_WALK,
 } ledstrip_algo_t;
 
 typedef struct 
@@ -38,7 +39,6 @@ class Ledstrip {
     uint32_t startled;
 
     string to_json(const string& tag, uint32_t nr);
-    void show();
 
 public:
     led_config_t cfg;
@@ -48,12 +48,17 @@ public:
     void loop();
 
     esp_err_t init();
-    void monocolor();
-    void rainbow();
-    void rainbow_clock();
     void switchLeds();
     void saveConfig();
     void restoreConfig();
+
+    // LED algorithms
+    void monocolor();
+    void rainbow();
+    void rainbow_clock();
+    void dark();
+    void walk();
+    void firstled(uint32_t red, uint32_t green, uint32_t blue);
 
     string to_json(led_config_t& cfg);
 };

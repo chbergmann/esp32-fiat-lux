@@ -117,6 +117,40 @@ void Ledstrip::restoreConfig()
     rev_pixels = new uint8_t[cfg.num_leds * 3];
 }
 
+void Ledstrip::dark()
+{
+    memset(led_strip_pixels, 0, cfg.num_leds * 3);
+}
+
+void Ledstrip::walk()
+{
+    if(loopcnt != 1)
+        return;
+
+    int i = cfg.num_leds - 1;
+    uint8_t buf[3];
+    for(int j=0; j<3; j++)
+        buf[j] = led_strip_pixels[i * 3 + j];
+
+    for(i=cfg.num_leds-2; i>=0; i--)
+    {
+        for(int j=0; j<3; j++)
+        {
+            led_strip_pixels[(i+1) * 3 + j] = led_strip_pixels[i * 3 + j];
+        }
+    }
+    for(int j=0; j<3; j++)
+        led_strip_pixels[j] = buf[j];
+}
+
+void Ledstrip::firstled(uint32_t red, uint32_t green, uint32_t blue)
+{
+    int n = (cfg.led1 % cfg.num_leds) * 3;
+    led_strip_pixels[n + 0] = green;
+    led_strip_pixels[n + 1] = red;
+    led_strip_pixels[n + 2] = blue;
+}
+
 string Ledstrip::to_json(led_config_t& cfg)
 {
     return "{" + 
@@ -134,10 +168,6 @@ string Ledstrip::to_json(led_config_t& cfg)
 string Ledstrip::to_json(const string &tag, uint32_t nr)
 {
     return "\"" + tag + "\":" + to_string(nr);
-}
-
-void Ledstrip::show()
-{
 }
 
 Ledstrip::Ledstrip(const char *spiffs_path)
@@ -250,6 +280,7 @@ void Ledstrip::switchLeds()
         case ALGO_MONO: monocolor(); break;
         case ALGO_RAINBOW: rainbow(); break;
         case ALGO_RAINBOWCLK: rainbow_clock(); break;
+        case ALGO_WALK: walk(); break;
     }
 
     if(!cfg.counterclock)
@@ -289,7 +320,7 @@ void Ledstrip::loop()
                 loopcnt = 0;
                 
             // Wait until the next cycle
-            if(cfg.algorithm == ALGO_RAINBOW)
+            if(cfg.algorithm == ALGO_RAINBOW || cfg.algorithm == ALGO_WALK)
                 period = TASK_PERIOD_MS;
         }
         else {

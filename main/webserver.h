@@ -12,6 +12,7 @@ enum {
     URI_LED,
     URI_VALUES,
     URI_SET,
+    URI_WALK,
     NUM_HANDLERS
 };
 

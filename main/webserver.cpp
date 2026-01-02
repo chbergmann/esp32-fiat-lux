@@ -53,6 +53,7 @@ static const char* SITES[] = {
     "/led",
     "/values",
     "/set",
+    "/walk"
 };
 
 Webserver::Webserver(const char* spffs_path) :
@@ -261,6 +262,17 @@ esp_err_t Webserver::led_get_handler(httpd_req_t *req)
     else if(string(req->uri).find(SITES[URI_RAINBOW]) != string::npos)
         ledstrip.cfg.algorithm = ALGO_RAINBOW;
 
+    else if(string(req->uri).find(SITES[URI_WALK]) != string::npos)
+    {
+        ledstrip.dark();
+        ledstrip.cfg.algorithm = ALGO_WALK;
+    }
+
+    if(ledstrip.cfg.algorithm == ALGO_WALK)
+    {
+        ledstrip.firstled(ledstrip.cfg.red, ledstrip.cfg.green, ledstrip.cfg.blue);
+    }
+
     ledstrip.switchLeds();
     ledstrip.saveConfig();
 
@@ -290,6 +302,9 @@ esp_err_t Webserver::led_set_handler(httpd_req_t *req)
             }
             if (httpd_query_key_value(buf, "rotate", col, sizeof(col)) == ESP_OK) {
                 ledstrip.cfg.counterclock = string(col) == "left";
+            }
+            if (httpd_query_key_value(buf, "led1", col, sizeof(col)) == ESP_OK) {
+                ledstrip.cfg.led1 = strtoul(col, NULL, 10);
             }
         }
     }
@@ -369,6 +384,7 @@ static const httpd_uri_t sse = {
 esp_err_t Webserver::start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    config.max_uri_handlers   = NUM_HANDLERS + 1; 
 
     for(int i=0; i<NUM_HANDLERS; i++) {
         handlers[i].method = HTTP_GET;

@@ -1,14 +1,20 @@
 # ESP32 Fiat Lux
 A WS2812 LED controller with webserver
 
-THIS PROJECT IS UNFINISHED
-
 ## Featues
-
 
 - Wifi station connection to your local network
 - Select different modes for let yor LED strip from a website
-- SNTP get the current time from the internet
+- SNTP get the current time from the internet  
+  
+<img width="32" height="32" src="website/zahnrad.svg" alt="settings"> Set number of LEDs, starting point, direction, ...  
+<img width="32" height="32" src="website/rainbow.svg" alt="rainbow"> Rainbow colors  
+<img width="32" height="32" src="website/clock-rainbow.svg" alt="rainbow"> blue in the morning, green in the afternoon, red in the night  
+<img width="32" height="32" src="website/walking-person.svg" alt="walking"> walking LEDs  
+<img width="32" height="32" src="website/turtle-svgrepo-com.svg" alt="turtle"> rotate slower  
+<img width="32" height="32" src="website/running_rabbit.svg" alt="rabbit"> rotate faster  
+
+
 
 ## Requirements
 
@@ -42,10 +48,6 @@ Run `idf.py -p PORT flash monitor` to build, flash and monitor the project.
 (To exit the serial monitor, type ``Ctrl-]``.)
 
 See the Getting Started Guide for all the steps to configure and use the ESP-IDF to build projects.
-
-## Running the example on ESP Chips without Wi-Fi
-
-This example can run on ESP Chips without Wi-Fi using ESP-Hosted. See the [Two-Chip Solution](../../README.md#wi-fi-examples-with-two-chip-solution) section in the upper level `README.md` for information.
 
 ## Troubleshooting
 
