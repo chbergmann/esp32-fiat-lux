@@ -102,3 +102,9 @@ function speedSlide()
     const url = `/speed?speed=${slider.value}`;
     trigger_restapi(url)
 }
+
+function clock2()
+{
+    const url = `/clock2?bright=${mycolor.value}`;
+    trigger_restapi(url)
+}

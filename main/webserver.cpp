@@ -53,7 +53,8 @@ static const char* SITES[] = {
     "/led",
     "/values",
     "/set",
-    "/walk"
+    "/walk",
+    "/clock2"
 };
 
 Webserver::Webserver(const char* spffs_path) :
@@ -270,12 +271,15 @@ esp_err_t Webserver::led_get_handler(httpd_req_t *req)
         ledstrip.firstled(ledstrip.cfg.color1);
     }
 
+    else if(string(req->uri).find(SITES[URI_CLOCK2]) != string::npos)
+        ledstrip.cfg.algorithm = ALGO_CLOCK2;
+
     if(string(req->uri).find(SITES[URI_LED]) != string::npos && ledstrip.cfg.algorithm == ALGO_WALK)
     {
         ledstrip.firstled(ledstrip.cfg.color1);
     }
 
-    ledstrip.switchLeds();
+    ledstrip.switchNow();
     ledstrip.saveConfig();
 
     httpd_resp_send(req, NULL, 0);

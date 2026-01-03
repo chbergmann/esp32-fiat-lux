@@ -15,11 +15,38 @@
 #include <sys/time.h>
 
 #define RMT_LED_STRIP_RESOLUTION_HZ 10000000 // 10MHz resolution, 1 tick = 0.1us (led strip needs a high resolution)
-#define TASK_PERIOD_MS  10
 #define EXAMPLE_LED_NUMBERS         CONFIG_LED_NUMBERS
 #define MAX_LEDS 10000
+#define SPEED_MAX_VAL   100
+#define PERIOD_SECOND   1000
+#define PERIOD_MIN      10
 
 static const char *TAG = "leds";
+
+Ledstrip::Ledstrip(const char *spiffs_path)
+{
+    snprintf(cfgfile_path, sizeof(cfgfile_path), "%s/config.bin", spiffs_path);
+    memset(&cfg, 0, sizeof(led_config_t));
+    led_strip_pixels = NULL;
+    rmt_pixels = NULL;
+    mainTask = 0;
+
+    led_chan = NULL;
+    led_encoder = NULL;
+    memset(&tx_chan_config, 0, sizeof(tx_chan_config));
+    memset(&tx_config, 0, sizeof(tx_config));
+    tx_chan_config.clk_src = RMT_CLK_SRC_DEFAULT; // select source clock
+    tx_chan_config.gpio_num = (gpio_num_t)RMT_LED_STRIP_GPIO_NUM;
+    tx_chan_config.mem_block_symbols = 64; // increase the block size can make the LED less flickering
+    tx_chan_config.resolution_hz = RMT_LED_STRIP_RESOLUTION_HZ;
+    tx_chan_config.trans_queue_depth = 4; // set the number of transactions that can be pending in the background
+    tx_config.loop_count = 0; // no transfer loop
+}
+
+Ledstrip::~Ledstrip()
+{
+    new_led_strip_pixels(0);
+}
 
 /**
  * @brief Simple helper function, converting HSV color space to RGB color space
@@ -128,9 +155,9 @@ void Ledstrip::dark()
 
 void Ledstrip::walk()
 {
-    if(loopcnt != 1)
+    if(cfg.speed == 0)
         return;
-
+        
     int i = cfg.num_leds - 1;
     color_t buf = led_strip_pixels[i];
 
@@ -181,29 +208,6 @@ void Ledstrip::new_led_strip_pixels(uint32_t nr_leds)
     cfg.num_leds = nr_leds;
 }
 
-Ledstrip::Ledstrip(const char *spiffs_path)
-{
-    snprintf(cfgfile_path, sizeof(cfgfile_path), "%s/config.bin", spiffs_path);
-    memset(&cfg, 0, sizeof(led_config_t));
-    led_strip_pixels = NULL;
-    rmt_pixels = NULL;
-
-    led_chan = NULL;
-    led_encoder = NULL;
-    memset(&tx_chan_config, 0, sizeof(tx_chan_config));
-    memset(&tx_config, 0, sizeof(tx_config));
-    tx_chan_config.clk_src = RMT_CLK_SRC_DEFAULT; // select source clock
-    tx_chan_config.gpio_num = (gpio_num_t)RMT_LED_STRIP_GPIO_NUM;
-    tx_chan_config.mem_block_symbols = 64; // increase the block size can make the LED less flickering
-    tx_chan_config.resolution_hz = RMT_LED_STRIP_RESOLUTION_HZ;
-    tx_chan_config.trans_queue_depth = 4; // set the number of transactions that can be pending in the background
-    tx_config.loop_count = 0; // no transfer loop
-}
-
-Ledstrip::~Ledstrip()
-{
-    new_led_strip_pixels(0);
-}
 
 esp_err_t Ledstrip::init()
 {
@@ -237,24 +241,20 @@ void Ledstrip::rainbow()
     uint16_t hue = 0;
     uint32_t red, green, blue;
     
-    if(loopcnt == 0)
-    {
-        for (int j = 0; j < cfg.num_leds; j ++) {
-            // Build RGB pixels
-            hue = (cfg.num_leds + j - startled) % cfg.num_leds * 360 / cfg.num_leds;
-            led_strip_hsv2rgb(hue, 100, 100, &red, &green, &blue);
-            led_strip_pixels[j].green = green * cfg.bright / 100;
-            led_strip_pixels[j].red = red * cfg.bright / 100;
-            led_strip_pixels[j].blue = blue * cfg.bright / 100;
-        }
+    for (int j = 0; j < cfg.num_leds; j ++) {
+        // Build RGB pixels
+        hue = (cfg.num_leds + j - startled) % cfg.num_leds * 360 / cfg.num_leds;
+        led_strip_hsv2rgb(hue, 100, 100, &red, &green, &blue);
+        led_strip_pixels[j].green = green * cfg.bright / 100;
+        led_strip_pixels[j].red = red * cfg.bright / 100;
+        led_strip_pixels[j].blue = blue * cfg.bright / 100;
     }
-    else if(loopcnt == 1) 
-    {
+    
+    if(cfg.speed > 0)
         startled = (startled + 1) % cfg.num_leds;    
-    }
 }
 
-void Ledstrip::rainbow_clock()
+void Ledstrip::rainbow_clock(uint32_t brightness)
 {
     uint16_t hue = 0;
     uint32_t red, green, blue;
@@ -268,14 +268,27 @@ void Ledstrip::rainbow_clock()
     strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
     hue = now * 360 / (24*60*60) % 360;
     ESP_LOGI(TAG, "%s hue %d", strftime_buf, hue);
-    led_strip_hsv2rgb(hue, 100, 100, &red, &green, &blue);
+    led_strip_hsv2rgb(359 - hue, 100, brightness, &red, &green, &blue);
     
     for (int j = 0; j < cfg.num_leds; j ++) {
         // Build RGB pixels
-        led_strip_pixels[j].green = green * cfg.bright / 100;
-        led_strip_pixels[j].red = red * cfg.bright / 100;
-        led_strip_pixels[j].blue = blue * cfg.bright / 100;
+        led_strip_pixels[j].green = green;
+        led_strip_pixels[j].red = red;
+        led_strip_pixels[j].blue = blue;
     }
+}
+
+void Ledstrip::clock2()
+{
+    rainbow_clock(5);
+
+    time_t now;
+    struct tm timeinfo;
+    time(&now);
+
+    localtime_r(&now, &timeinfo);
+    
+    led_strip_pixels[cfg.num_leds * timeinfo.tm_sec / 60] = cfg.color1;
 }
 
 void Ledstrip::switchLeds()
@@ -284,8 +297,9 @@ void Ledstrip::switchLeds()
     {
         case ALGO_MONO: monocolor(); break;
         case ALGO_RAINBOW: rainbow(); break;
-        case ALGO_RAINBOWCLK: rainbow_clock(); break;
+        case ALGO_RAINBOWCLK: rainbow_clock(cfg.bright); break;
         case ALGO_WALK: walk(); break;
+        case ALGO_CLOCK2: clock2(); break;
     }
 
     for(int i=0; i<cfg.num_leds; i++)
@@ -301,31 +315,37 @@ void Ledstrip::switchLeds()
 
 void Ledstrip::loop()
 {
-    TickType_t lastWakeTime = xTaskGetTickCount();
-
-    // Convert 10 ms to ticks
-    TickType_t period;
-
+    mainTask = xTaskGetCurrentTaskHandle();
     for (;;)
     {
+        TickType_t period;
+        TickType_t lastWakeTime = xTaskGetTickCount();
         switchLeds();  
-        period = 1000;     
-
-        if(cfg.speed > 0)
+        rmt_tx_wait_all_done(led_chan, PERIOD_SECOND);
+        
+        switch(cfg.algorithm)
         {
-            loopcnt++;
-            int32_t s = pow(2, (10 - cfg.speed));
-            if(loopcnt >= s)
-                loopcnt = 0;
-                
-            // Wait until the next cycle
-            if(cfg.algorithm == ALGO_RAINBOW || cfg.algorithm == ALGO_WALK)
-                period = TASK_PERIOD_MS;
+            case ALGO_RAINBOW:
+            case ALGO_WALK:
+                period = 10 * PERIOD_SECOND * (SPEED_MAX_VAL + 1 - cfg.speed) / SPEED_MAX_VAL / cfg.num_leds;
+                break;
+
+            case ALGO_CLOCK2:
+                period = PERIOD_SECOND / cfg.num_leds;
+                break;
+
+            default: 
+                period = PERIOD_SECOND; 
+                break;
         }
-        else {
-            loopcnt = 0;
-        }
-            
-        vTaskDelayUntil(&lastWakeTime, pdMS_TO_TICKS(period));
+
+        TickType_t diff = xTaskGetTickCount() - lastWakeTime;
+        if((period) > diff)
+            vTaskDelay(pdMS_TO_TICKS(period) - diff);
     }
+}
+
+void Ledstrip::switchNow()
+{
+    xTaskAbortDelay( mainTask );
 }

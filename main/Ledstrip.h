@@ -12,6 +12,7 @@ typedef enum {
     ALGO_RAINBOW,
     ALGO_RAINBOWCLK,
     ALGO_WALK,
+    ALGO_CLOCK2,
 } ledstrip_algo_t;
 
 typedef struct {
@@ -39,13 +40,14 @@ class Ledstrip {
     rmt_transmit_config_t tx_config;
     color_t* led_strip_pixels;
     uint8_t* rmt_pixels;
-    uint32_t loopcnt;
     char cfgfile_path[32];
     uint32_t startled;
+    TaskHandle_t mainTask;
 
     string to_json(const string& tag, uint32_t nr);
     void new_led_strip_pixels(uint32_t nr_leds);
     size_t led_strip_size() { return cfg.num_leds * 3; }
+    void switchLeds();
 
 public:
     led_config_t cfg;
@@ -55,17 +57,18 @@ public:
     void loop();
 
     esp_err_t init();
-    void switchLeds();
     void saveConfig();
     void restoreConfig();
+    void switchNow();
 
     // LED algorithms
     void monocolor();
     void rainbow();
-    void rainbow_clock();
+    void rainbow_clock(uint32_t brightness);
     void dark();
     void walk();
     void firstled(color_t color);
+    void clock2();
 
     string to_json(led_config_t& cfg);
 };

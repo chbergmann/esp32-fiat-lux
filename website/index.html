@@ -13,13 +13,14 @@
             <button type="button" class="imgbutton" onclick="window.location.href='/settings.html'"><img class="btnimg" id="rainbow" src="zahnrad.svg" alt="settings"></button>
             <button type="button" class="imgbutton" onclick="mono()"><div id="monobutton"></div></button>
             <button type="button" class="imgbutton" onclick="rainbow()"><img class="btnimg" id="rainbow" src="rainbow.svg" alt="rainbow"></button>
-            <button type="button" class="imgbutton" onclick="rainbowclk()"><img class="btnimg" id="rainbowclk" src="clock-rainbow.svg" alt="rainbow"></button>
             <button type="button" class="imgbutton" onclick="walking()"><img class="btnimg" id="walking" src="walking-person.svg" alt="walking"></button>
+            <button type="button" class="imgbutton" onclick="rainbowclk()"><img class="btnimg" id="rainbowclk" src="clock-rainbow.svg" alt="clock1"></button>
+            <button type="button" class="imgbutton" onclick="clock2()"><img class="btnimg" id="clock2" src="clock-rainbow2.svg" alt="clock2"></button>
         </div>
 		<div id="picker"></div>
         <div class="slidecontainer">
             <img class="sliderimg" id="turtle" src="turtle-svgrepo-com.svg" alt="slow">
-            <input type="range" min="0" max="10" value="0" class="slider" id="speedRange" oninput="speedSlide()" />
+            <input type="range" min="0" max="100" value="0" class="slider" id="speedRange" oninput="speedSlide()" />
             <img class="sliderimg" id="rabbit" src="running_rabbit.svg" alt="fast">
         </div>
     </div>

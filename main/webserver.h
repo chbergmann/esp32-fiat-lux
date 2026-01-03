@@ -13,6 +13,7 @@ enum {
     URI_VALUES,
     URI_SET,
     URI_WALK,
+    URI_CLOCK2,
     NUM_HANDLERS
 };
 
