@@ -84,7 +84,7 @@ void Ledstrip::saveConfig()
     {
         ESP_LOGE(TAG, "Failed to write to %s: %s", cfgfile_path, strerror(errno));
     }
-    if(fwrite(led_strip_pixels, 1, led_strip_size(), f) != sizeof(cfg))
+    if(fwrite(led_strip_pixels, 1, led_strip_size(), f) != led_strip_size())
     {
         ESP_LOGE(TAG, "Failed to write to %s: %s", cfgfile_path, strerror(errno));
     }
@@ -96,7 +96,7 @@ void Ledstrip::restoreConfig()
     memset(&cfg, 0, sizeof(led_config_t));
     cfg.num_leds = EXAMPLE_LED_NUMBERS;
     cfg.bright = 100;
-    cfg.red = 255;
+    cfg.color1.red = 255;
 
     FILE* f = fopen(cfgfile_path, "r");
     if (f == NULL) 
@@ -132,35 +132,26 @@ void Ledstrip::walk()
         return;
 
     int i = cfg.num_leds - 1;
-    uint8_t buf[3];
-    for(int j=0; j<3; j++)
-        buf[j] = led_strip_pixels[i * 3 + j];
+    color_t buf = led_strip_pixels[i];
 
     for(i=cfg.num_leds-2; i>=0; i--)
     {
-        for(int j=0; j<3; j++)
-        {
-            led_strip_pixels[(i+1) * 3 + j] = led_strip_pixels[i * 3 + j];
-        }
+        led_strip_pixels[(i+1)] = led_strip_pixels[i];
     }
-    for(int j=0; j<3; j++)
-        led_strip_pixels[j] = buf[j];
+    led_strip_pixels[0] = buf;
 }
 
-void Ledstrip::firstled(uint32_t red, uint32_t green, uint32_t blue)
+void Ledstrip::firstled(color_t color)
 {
-    int n = (cfg.led1 % cfg.num_leds) * 3;
-    led_strip_pixels[n + 0] = green;
-    led_strip_pixels[n + 1] = red;
-    led_strip_pixels[n + 2] = blue;
+    led_strip_pixels[cfg.led1 % cfg.num_leds] = color;
 }
 
 string Ledstrip::to_json(led_config_t& cfg)
 {
     return "{" + 
-        to_json("red", cfg.red) + "," + 
-        to_json("green", cfg.green) + "," + 
-        to_json("blue", cfg.blue) + "," + 
+        to_json("red", cfg.color1.red) + "," + 
+        to_json("green", cfg.color1.green) + "," + 
+        to_json("blue", cfg.color1.blue) + "," + 
         to_json("speed", cfg.speed) + "," + 
         to_json("bright", cfg.bright) + "," +
         to_json("nr_leds", cfg.num_leds) + "," +
@@ -179,13 +170,13 @@ void Ledstrip::new_led_strip_pixels(uint32_t nr_leds)
     if(led_strip_pixels)
         delete led_strip_pixels;
 
-    if(rev_pixels)
-        delete rev_pixels;
+    if(rmt_pixels)
+        delete rmt_pixels;
 
     if(nr_leds > 0)
     {
-        led_strip_pixels = new uint8_t[nr_leds * 3];
-        rev_pixels = new uint8_t[nr_leds * 3];
+        led_strip_pixels = new color_t[nr_leds];
+        rmt_pixels = new uint8_t[nr_leds*3];
     }
     cfg.num_leds = nr_leds;
 }
@@ -195,7 +186,7 @@ Ledstrip::Ledstrip(const char *spiffs_path)
     snprintf(cfgfile_path, sizeof(cfgfile_path), "%s/config.bin", spiffs_path);
     memset(&cfg, 0, sizeof(led_config_t));
     led_strip_pixels = NULL;
-    rev_pixels = NULL;
+    rmt_pixels = NULL;
 
     led_chan = NULL;
     led_encoder = NULL;
@@ -237,9 +228,7 @@ void Ledstrip::monocolor()
     //ESP_LOGI(TAG, "R=%d G=%d B=%d", cfg.red, cfg.green, cfg.blue);
     for (int j = 0; j < cfg.num_leds; j ++) {
         // Build RGB pixels
-        led_strip_pixels[j * 3 + 0] = cfg.green;
-        led_strip_pixels[j * 3 + 1] = cfg.red;
-        led_strip_pixels[j * 3 + 2] = cfg.blue;
+        led_strip_pixels[j] = cfg.color1;
     }
 }
 
@@ -254,9 +243,9 @@ void Ledstrip::rainbow()
             // Build RGB pixels
             hue = (cfg.num_leds + j - startled) % cfg.num_leds * 360 / cfg.num_leds;
             led_strip_hsv2rgb(hue, 100, 100, &red, &green, &blue);
-            led_strip_pixels[j * 3 + 0] = green * cfg.bright / 100;
-            led_strip_pixels[j * 3 + 1] = red * cfg.bright / 100;
-            led_strip_pixels[j * 3 + 2] = blue * cfg.bright / 100;
+            led_strip_pixels[j].green = green * cfg.bright / 100;
+            led_strip_pixels[j].red = red * cfg.bright / 100;
+            led_strip_pixels[j].blue = blue * cfg.bright / 100;
         }
     }
     else if(loopcnt == 1) 
@@ -283,9 +272,9 @@ void Ledstrip::rainbow_clock()
     
     for (int j = 0; j < cfg.num_leds; j ++) {
         // Build RGB pixels
-        led_strip_pixels[j * 3 + 0] = green * cfg.bright / 100;
-        led_strip_pixels[j * 3 + 1] = red * cfg.bright / 100;
-        led_strip_pixels[j * 3 + 2] = blue * cfg.bright / 100;
+        led_strip_pixels[j].green = green * cfg.bright / 100;
+        led_strip_pixels[j].red = red * cfg.bright / 100;
+        led_strip_pixels[j].blue = blue * cfg.bright / 100;
     }
 }
 
@@ -299,21 +288,15 @@ void Ledstrip::switchLeds()
         case ALGO_WALK: walk(); break;
     }
 
-    if(!cfg.counterclock)
+    for(int i=0; i<cfg.num_leds; i++)
     {
-        ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, led_strip_size(), &tx_config));
+        int j = cfg.counterclock ? cfg.num_leds - 1 - i : i;
+        rmt_pixels[i*3+0] = led_strip_pixels[j].green;
+        rmt_pixels[i*3+1] = led_strip_pixels[j].red;
+        rmt_pixels[i*3+2] = led_strip_pixels[j].blue;
     }
-    else
-    {
-        for(int i=0; i<cfg.num_leds; i++)
-        {
-            rev_pixels[i * 3 + 0] = led_strip_pixels[led_strip_size() - (i * 3) - 3];
-            rev_pixels[i * 3 + 1] = led_strip_pixels[led_strip_size() - (i * 3) - 2];
-            rev_pixels[i * 3 + 2] = led_strip_pixels[led_strip_size() - (i * 3) - 1];
-        }
 
-        ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, rev_pixels, led_strip_size(), &tx_config));
-    }
+    ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, led_strip_size(), &tx_config));
 }
 
 void Ledstrip::loop()

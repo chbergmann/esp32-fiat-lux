@@ -234,15 +234,16 @@ esp_err_t Webserver::led_get_handler(httpd_req_t *req)
         if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
             ESP_LOGI(TAG, "Found URL query => %s", buf);
             char col[EXAMPLE_HTTP_QUERY_KEY_MAX_LEN] = {0};
+            color_t* color = &ledstrip.cfg.color1;
             /* Get value of expected key from query string */
             if (httpd_query_key_value(buf, "red", col, sizeof(col)) == ESP_OK) {
-                ledstrip.cfg.red = strtoul(col, NULL, 10);
+                color->red = (uint8_t)strtoul(col, NULL, 10);
             }
             if (httpd_query_key_value(buf, "green", col, sizeof(col)) == ESP_OK) {
-                ledstrip.cfg.green = strtoul(col, NULL, 10);
+                color->green = (uint8_t)strtoul(col, NULL, 10);
             }
             if (httpd_query_key_value(buf, "blue", col, sizeof(col)) == ESP_OK) {
-                ledstrip.cfg.blue = strtoul(col, NULL, 10);
+                color->blue = (uint8_t)strtoul(col, NULL, 10);
             }
             if (httpd_query_key_value(buf, "bright", col, sizeof(col)) == ESP_OK) {
                 ledstrip.cfg.bright = strtoul(col, NULL, 10);
@@ -266,11 +267,12 @@ esp_err_t Webserver::led_get_handler(httpd_req_t *req)
     {
         ledstrip.dark();
         ledstrip.cfg.algorithm = ALGO_WALK;
+        ledstrip.firstled(ledstrip.cfg.color1);
     }
 
-    if(ledstrip.cfg.algorithm == ALGO_WALK)
+    if(string(req->uri).find(SITES[URI_LED]) != string::npos && ledstrip.cfg.algorithm == ALGO_WALK)
     {
-        ledstrip.firstled(ledstrip.cfg.red, ledstrip.cfg.green, ledstrip.cfg.blue);
+        ledstrip.firstled(ledstrip.cfg.color1);
     }
 
     ledstrip.switchLeds();
