@@ -39,6 +39,8 @@ class Ledstrip {
     uint32_t startled;
 
     string to_json(const string& tag, uint32_t nr);
+    void new_led_strip_pixels(uint32_t nr_leds);
+    uint32_t led_strip_size() { return cfg.num_leds*3; }
 
 public:
     led_config_t cfg;

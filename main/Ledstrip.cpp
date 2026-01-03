@@ -17,6 +17,7 @@
 #define RMT_LED_STRIP_RESOLUTION_HZ 10000000 // 10MHz resolution, 1 tick = 0.1us (led strip needs a high resolution)
 #define TASK_PERIOD_MS  10
 #define EXAMPLE_LED_NUMBERS         CONFIG_LED_NUMBERS
+#define MAX_LEDS 10000
 
 static const char *TAG = "leds";
 
@@ -83,18 +84,15 @@ void Ledstrip::saveConfig()
     {
         ESP_LOGE(TAG, "Failed to write to %s: %s", cfgfile_path, strerror(errno));
     }
+    if(fwrite(led_strip_pixels, 1, led_strip_size(), f) != sizeof(cfg))
+    {
+        ESP_LOGE(TAG, "Failed to write to %s: %s", cfgfile_path, strerror(errno));
+    }
     fclose(f);
 }
 
 void Ledstrip::restoreConfig()
 {
-    if(led_strip_pixels) 
-    {
-        delete led_strip_pixels;
-        led_strip_pixels = NULL;
-        delete rev_pixels;
-        rev_pixels = NULL;
-    }
     memset(&cfg, 0, sizeof(led_config_t));
     cfg.num_leds = EXAMPLE_LED_NUMBERS;
     cfg.bright = 100;
@@ -104,22 +102,28 @@ void Ledstrip::restoreConfig()
     if (f == NULL) 
     {
         ESP_LOGW(TAG, "Failed to open %s. Using default config", cfgfile_path);
+        new_led_strip_pixels(cfg.num_leds);
     }
     else {
         if(fread(&cfg, 1, sizeof(cfg), f) != sizeof(cfg))
         {
             ESP_LOGE(TAG, "Failed to read %s. Using default config", cfgfile_path);
         }
+        if(cfg.num_leds < MAX_LEDS)
+        {
+            new_led_strip_pixels(cfg.num_leds);
+            if(fread(led_strip_pixels, 1, led_strip_size(), f) != led_strip_size())
+            {
+                ESP_LOGE(TAG, "Failed to read %s. Using default config", cfgfile_path);
+            }
+        }
         fclose(f);
     }
-        
-    led_strip_pixels = new uint8_t[cfg.num_leds * 3];
-    rev_pixels = new uint8_t[cfg.num_leds * 3];
 }
 
 void Ledstrip::dark()
 {
-    memset(led_strip_pixels, 0, cfg.num_leds * 3);
+    memset(led_strip_pixels, 0, led_strip_size());
 }
 
 void Ledstrip::walk()
@@ -170,6 +174,22 @@ string Ledstrip::to_json(const string &tag, uint32_t nr)
     return "\"" + tag + "\":" + to_string(nr);
 }
 
+void Ledstrip::new_led_strip_pixels(uint32_t nr_leds)
+{
+    if(led_strip_pixels)
+        delete led_strip_pixels;
+
+    if(rev_pixels)
+        delete rev_pixels;
+
+    if(nr_leds > 0)
+    {
+        led_strip_pixels = new uint8_t[nr_leds * 3];
+        rev_pixels = new uint8_t[nr_leds * 3];
+    }
+    cfg.num_leds = nr_leds;
+}
+
 Ledstrip::Ledstrip(const char *spiffs_path)
 {
     snprintf(cfgfile_path, sizeof(cfgfile_path), "%s/config.bin", spiffs_path);
@@ -191,11 +211,7 @@ Ledstrip::Ledstrip(const char *spiffs_path)
 
 Ledstrip::~Ledstrip()
 {
-    if(led_strip_pixels)
-        delete led_strip_pixels;
-
-    if(rev_pixels)
-        delete rev_pixels;
+    new_led_strip_pixels(0);
 }
 
 esp_err_t Ledstrip::init()
@@ -285,18 +301,18 @@ void Ledstrip::switchLeds()
 
     if(!cfg.counterclock)
     {
-        ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, cfg.num_leds*3, &tx_config));
+        ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, led_strip_size(), &tx_config));
     }
     else
     {
         for(int i=0; i<cfg.num_leds; i++)
         {
-            rev_pixels[i * 3 + 0] = led_strip_pixels[cfg.num_leds*3 - (i * 3) - 3];
-            rev_pixels[i * 3 + 1] = led_strip_pixels[cfg.num_leds*3 - (i * 3) - 2];
-            rev_pixels[i * 3 + 2] = led_strip_pixels[cfg.num_leds*3 - (i * 3) - 1];
+            rev_pixels[i * 3 + 0] = led_strip_pixels[led_strip_size() - (i * 3) - 3];
+            rev_pixels[i * 3 + 1] = led_strip_pixels[led_strip_size() - (i * 3) - 2];
+            rev_pixels[i * 3 + 2] = led_strip_pixels[led_strip_size() - (i * 3) - 1];
         }
 
-        ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, rev_pixels, cfg.num_leds*3, &tx_config));
+        ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, rev_pixels, led_strip_size(), &tx_config));
     }
 }
 
