@@ -43,6 +43,7 @@ class Ledstrip {
     char cfgfile_path[32];
     uint32_t startled;
     TaskHandle_t mainTask;
+    int lastSec;
 
     string to_json(const string& tag, uint32_t nr);
     void new_led_strip_pixels(uint32_t nr_leds);
@@ -64,7 +65,7 @@ public:
     // LED algorithms
     void monocolor();
     void rainbow();
-    void rainbow_clock(uint32_t brightness);
+    void rainbow_clock();
     void dark();
     void walk();
     void firstled(color_t color);

@@ -30,6 +30,7 @@ Ledstrip::Ledstrip(const char *spiffs_path)
     led_strip_pixels = NULL;
     rmt_pixels = NULL;
     mainTask = 0;
+    lastSec = -1;
 
     led_chan = NULL;
     led_encoder = NULL;
@@ -254,7 +255,7 @@ void Ledstrip::rainbow()
         startled = (startled + 1) % cfg.num_leds;    
 }
 
-void Ledstrip::rainbow_clock(uint32_t brightness)
+void Ledstrip::rainbow_clock()
 {
     uint16_t hue = 0;
     uint32_t red, green, blue;
@@ -266,12 +267,13 @@ void Ledstrip::rainbow_clock(uint32_t brightness)
 
     localtime_r(&now, &timeinfo);
     strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-    hue = now * 360 / (24*60*60) % 360;
     ESP_LOGI(TAG, "%s hue %d", strftime_buf, hue);
-    led_strip_hsv2rgb(359 - hue, 100, brightness, &red, &green, &blue);
+
+    hue = 359 - (now * 360 / (24*60*60) % 360);
+    led_strip_hsv2rgb(hue, 100, cfg.bright, &red, &green, &blue);
     
-    for (int j = 0; j < cfg.num_leds; j ++) {
-        // Build RGB pixels
+    for (int j = 0; j < cfg.num_leds; j ++) 
+    {
         led_strip_pixels[j].green = green;
         led_strip_pixels[j].red = red;
         led_strip_pixels[j].blue = blue;
@@ -280,15 +282,42 @@ void Ledstrip::rainbow_clock(uint32_t brightness)
 
 void Ledstrip::clock2()
 {
-    rainbow_clock(5);
-
     time_t now;
     struct tm timeinfo;
-    time(&now);
+    char strftime_buf[64];
+    uint16_t hue = 0;
+    uint32_t red, green, blue;
 
+    time(&now);
     localtime_r(&now, &timeinfo);
+    if(lastSec != timeinfo.tm_sec)
+    {
+        strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+        ESP_LOGI(TAG, "%s", strftime_buf);
+        lastSec = timeinfo.tm_sec;
+    }
     
-    led_strip_pixels[cfg.num_leds * timeinfo.tm_sec / 60] = cfg.color1;
+    dark();
+    
+    hue = 359 - (now * 360 / (24*60*60) % 360);
+    led_strip_hsv2rgb(hue, 100, 5, &red, &green, &blue);
+    
+    uint32_t minuteleds = cfg.num_leds * timeinfo.tm_min / 60;
+    for (int j = 0; j < minuteleds; j ++)
+    {
+        led_strip_pixels[j].green = green;
+        led_strip_pixels[j].red = red;
+        led_strip_pixels[j].blue = blue;
+    }
+
+    uint32_t hourleds = cfg.num_leds * timeinfo.tm_hour / 24;
+    led_strip_hsv2rgb(hue, 100, 100, &red, &green, &blue);
+    led_strip_pixels[hourleds].green = green;
+    led_strip_pixels[hourleds].red = red;
+    led_strip_pixels[hourleds].blue = blue;
+
+    uint32_t secleds = cfg.num_leds * timeinfo.tm_sec / 60;
+    led_strip_pixels[secleds] = cfg.color1;
 }
 
 void Ledstrip::switchLeds()
@@ -297,7 +326,7 @@ void Ledstrip::switchLeds()
     {
         case ALGO_MONO: monocolor(); break;
         case ALGO_RAINBOW: rainbow(); break;
-        case ALGO_RAINBOWCLK: rainbow_clock(cfg.bright); break;
+        case ALGO_RAINBOWCLK: rainbow_clock(); break;
         case ALGO_WALK: walk(); break;
         case ALGO_CLOCK2: clock2(); break;
     }
@@ -340,7 +369,7 @@ void Ledstrip::loop()
         }
 
         TickType_t diff = xTaskGetTickCount() - lastWakeTime;
-        if((period) > diff)
+        if(pdMS_TO_TICKS(period) > diff)
             vTaskDelay(pdMS_TO_TICKS(period) - diff);
     }
 }
