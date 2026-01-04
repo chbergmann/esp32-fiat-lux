@@ -66,14 +66,22 @@ async function onLoad()
         mycolor = color;
         const url = `/led?red=${mycolor.red}&green=${mycolor.green}&blue=${mycolor.blue}&bright=${mycolor.value}`;
         trigger_restapi(url)
-        var btn = document.getElementById("monobutton");
-        btn.style.backgroundColor = color.hexString;
+        var btn1 = document.getElementById("monobutton");
+        btn1.style.backgroundColor = color.hexString;
+        var btn2 = document.getElementById("gradientbutton");
+        btn2.style.background = `linear-gradient(90deg,rgba(0, 0, 0, 1), rgba(${mycolor.red}, ${mycolor.green}, ${mycolor.blue}, 1), rgba(0, 0, 0, 1))`
     });
 }
 
 function mono()
 {
     const url = `/mono?red=${mycolor.red}&green=${mycolor.green}&blue=${mycolor.blue}`;
+    trigger_restapi(url)
+}
+
+function gradient()
+{
+    const url = `/gradient?red=${mycolor.red}&green=${mycolor.green}&blue=${mycolor.blue}`;
     trigger_restapi(url)
 }
 

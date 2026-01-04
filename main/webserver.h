@@ -16,6 +16,7 @@ enum {
     URI_WALK,
     URI_CLOCK2,
     URI_POWER,
+    URI_GRADIENT,
     NUM_HANDLERS
 };
 
@@ -29,7 +30,8 @@ static const char* SITES[] = {
     "/set",
     "/walk",
     "/clock2",
-    "/power"
+    "/power",
+    "/gradient"
 };
 
 class Webserver {

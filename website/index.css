@@ -23,6 +23,7 @@
 }
 
 #monobutton { background-color: white; width:100%; height:90%; border-radius:10%; min-width:3em; }
+#gradientbutton { background: linear-gradient(90deg,rgba(0, 0, 0, 1), rgba(255, 0, 0, 1), rgba(0, 0, 0, 1)); width:100%; height:90%; border-radius:10%; min-width:3em; }
 
 .slider:hover {
   opacity: 1;

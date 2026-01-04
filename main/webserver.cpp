@@ -252,6 +252,13 @@ esp_err_t Webserver::led_get_handler(httpd_req_t *req)
     if(string(req->uri).find(SITES[URI_MONO]) != string::npos)
         ledstrip.cfg.algorithm = ALGO_MONO;
 
+    else if(string(req->uri).find(SITES[URI_GRADIENT]) != string::npos)
+    {
+        ledstrip.dark();
+        ledstrip.cfg.algorithm = ALGO_GRADIENT;
+        ledstrip.firstled(ledstrip.cfg.color1);
+    }
+
     else if(string(req->uri).find(SITES[URI_RAINBOWCLK]) != string::npos)
         ledstrip.cfg.algorithm = ALGO_RAINBOWCLK;
 
@@ -268,9 +275,16 @@ esp_err_t Webserver::led_get_handler(httpd_req_t *req)
     else if(string(req->uri).find(SITES[URI_CLOCK2]) != string::npos)
         ledstrip.cfg.algorithm = ALGO_CLOCK2;
 
-    if(string(req->uri).find(SITES[URI_LED]) != string::npos && ledstrip.cfg.algorithm == ALGO_WALK)
-    {
-        ledstrip.firstled(ledstrip.cfg.color1);
+    if(string(req->uri).find(SITES[URI_LED]) != string::npos)
+    { 
+        if(ledstrip.cfg.algorithm == ALGO_WALK)
+        {
+            ledstrip.firstled(ledstrip.cfg.color1);
+        }
+        else if(ledstrip.cfg.algorithm == ALGO_GRADIENT)
+        {
+            ledstrip.add_gradient(ledstrip.cfg.color1);
+        }
     }
 
     ledstrip.switchNow();

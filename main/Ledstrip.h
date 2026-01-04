@@ -9,6 +9,7 @@ using namespace std;
 
 typedef enum {
     ALGO_MONO,
+    ALGO_GRADIENT,
     ALGO_RAINBOW,
     ALGO_RAINBOWCLK,
     ALGO_WALK,
@@ -31,6 +32,8 @@ typedef struct
     color_t  color1;
     uint32_t bright;
     uint32_t speed;
+    uint32_t gradients;
+    bool power;
 } led_config_t;
 
 class Ledstrip {
@@ -44,12 +47,12 @@ class Ledstrip {
     uint32_t startled;
     TaskHandle_t mainTask;
     int lastSec;
-    bool power;
 
-    string to_json(const string& tag, uint32_t nr);
+    static string to_json(const string& tag, uint32_t nr);
     void new_led_strip_pixels(uint32_t nr_leds);
     size_t led_strip_size() { return cfg.num_leds * 3; }
     void switchLeds();
+    static uint8_t get_gradient(uint8_t color1, uint8_t color2, int a, int b, int i);
 
 public:
     led_config_t cfg;
@@ -72,6 +75,8 @@ public:
     void walk();
     void firstled(color_t color);
     void clock2();
+    void gradient();
+    void add_gradient(color_t color);
 
     string to_json(led_config_t& cfg);
 };

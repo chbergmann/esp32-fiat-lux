@@ -8,11 +8,12 @@ Use your LED strip as a clock.
 - Wifi station connection to your local network
 - Select different modes for let yor LED strip from a website
 - SNTP get the current time from the internet  
-  
+ 
 <img width="32" height="32" src="website/power-symbol-svgrepo-com.svg" alt="on/off"> ON/OFF  
 <img width="32" height="32" src="website/zahnrad.svg" alt="settings"> Set number of LEDs, starting point, direction, ...  
+<img width="32" height="32" src="website/gradient.svg" alt="gradient"> Color gradient. Click multiple times onto the color wheel to add multiple gradient colors    
 <img width="32" height="32" src="website/rainbow.svg" alt="rainbow"> Rainbow colors  
-<img width="32" height="32" src="website/clock-rainbow.svg" alt="rainbow"> blue in the morning, green in the afternoon, red in the night  
+<img width="32" height="32" src="website/clock-rainbow.svg" alt="rainbow"> blue in the morning, green in the afternoon, red at night  
 <img width="32" height="32" src="website/clock-rainbow2.svg" alt="rainbow"> rotating LEDs show the time  
 <img width="32" height="32" src="website/walking-person.svg" alt="walking"> walking LEDs  
 <img width="32" height="32" src="website/turtle-svgrepo-com.svg" alt="turtle"> rotate slower  
