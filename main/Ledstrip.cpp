@@ -160,8 +160,17 @@ void Ledstrip::dark()
 
 void Ledstrip::walk()
 {
-    if(cfg.speed > 0)
-        startled = (startled + 1) % cfg.num_leds;   
+    if(cfg.speed == 0)
+        return;
+        
+    int i = cfg.num_leds - 1;
+    color_t buf = led_strip_pixels[i];
+
+    for(i=cfg.num_leds-2; i>=0; i--)
+    {
+        led_strip_pixels[(i+1)] = led_strip_pixels[i];
+    }
+    led_strip_pixels[0] = buf;
 }
 
 void Ledstrip::firstled(color_t color)
