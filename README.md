@@ -1,7 +1,9 @@
 # ESP32 Fiat Lux
-A WS2812 LED controller with webserver
+A WS2812 LED controller with webserver  
+Select different LED strip color schemes from a website  
+Use your LED strip as a clock.
 
-## Featues
+## Features
 
 - Wifi station connection to your local network
 - Select different modes for let yor LED strip from a website
@@ -10,11 +12,26 @@ A WS2812 LED controller with webserver
 <img width="32" height="32" src="website/zahnrad.svg" alt="settings"> Set number of LEDs, starting point, direction, ...  
 <img width="32" height="32" src="website/rainbow.svg" alt="rainbow"> Rainbow colors  
 <img width="32" height="32" src="website/clock-rainbow.svg" alt="rainbow"> blue in the morning, green in the afternoon, red in the night  
+<img width="32" height="32" src="website/clock-rainbow2.svg" alt="rainbow"> rotating LEDs show the time  
 <img width="32" height="32" src="website/walking-person.svg" alt="walking"> walking LEDs  
 <img width="32" height="32" src="website/turtle-svgrepo-com.svg" alt="turtle"> rotate slower  
 <img width="32" height="32" src="website/running_rabbit.svg" alt="rabbit"> rotate faster  
 
+## Design philosophy
 
+Keep it simple!  
+This applies to the source code, the user interface and the documentation.  
+
+The Espressif IDF with its examples provides all the basic functionality that an IoT device needs.  
+This project makes also use of the standard C++ library, especially for better code structuring and string processing.  
+The webserver makes use of static HTML pages and a few javascript files. There is no need for node.js, Angular, React or some other fancy javascript libraries
+that replace one sort of complexity with onother one.
+This project only copied the nice color picker wheel from [github.com/jaames/iro.js](https://github.com/jaames/iro.js).  
+Javascript is good for "if you click here, do something there", but it should not be used for complex apps in my opinion.
+HTML5 is good enough to build websites that look good at your PCs screen as well as your smartphone display.
+All files in the folder [website](https://github.com/chbergmann/esp32-fiat-lux/tree/main/website) are loaded to a flash file system inside the chip.  
+
+A picture is better than 1000 words. I tried to use as few text in the user interface as possible.
 
 ## Requirements
 
