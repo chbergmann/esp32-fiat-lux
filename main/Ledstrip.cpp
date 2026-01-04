@@ -369,11 +369,7 @@ void Ledstrip::clock2()
 
 void Ledstrip::switchLeds()
 {
-    if(!cfg.power)
-    {
-        dark();
-    }
-    else switch(cfg.algorithm)
+    switch(cfg.algorithm)
     {
         case ALGO_MONO: monocolor(); break;
         case ALGO_RAINBOW: rainbow(); break;
@@ -383,13 +379,20 @@ void Ledstrip::switchLeds()
         case ALGO_GRADIENT: gradient(); break;
     }
 
-    for(int i=0; i<cfg.num_leds; i++)
+    if(!cfg.power)
     {
-        int j = cfg.counterclock ? cfg.num_leds - 1 - i : i;
-        int n = (i + startled) * 3 % led_strip_size();
-        rmt_pixels[n + 0] = led_strip_pixels[j].green;
-        rmt_pixels[n + 1] = led_strip_pixels[j].red;
-        rmt_pixels[n + 2] = led_strip_pixels[j].blue;
+        memset(rmt_pixels, 0, led_strip_size());
+    }
+    else 
+    {
+        for(int i=0; i<cfg.num_leds; i++)
+        {
+            int j = cfg.counterclock ? cfg.num_leds - 1 - i : i;
+            int n = (i + startled) * 3 % led_strip_size();
+            rmt_pixels[n + 0] = led_strip_pixels[j].green;
+            rmt_pixels[n + 1] = led_strip_pixels[j].red;
+            rmt_pixels[n + 2] = led_strip_pixels[j].blue;
+        }
     }
 
     ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, rmt_pixels, led_strip_size(), &tx_config));
@@ -421,9 +424,6 @@ void Ledstrip::loop()
                 period = PERIOD_SECOND; 
                 break;
         }
-
-        if(!cfg.power)
-            period = 1000000;
 
         TickType_t diff = xTaskGetTickCount() - lastWakeTime;
         if(pdMS_TO_TICKS(period) > diff)
