@@ -44,6 +44,7 @@ class Ledstrip {
     uint32_t startled;
     TaskHandle_t mainTask;
     int lastSec;
+    bool power;
 
     string to_json(const string& tag, uint32_t nr);
     void new_led_strip_pixels(uint32_t nr_leds);
@@ -61,6 +62,7 @@ public:
     void saveConfig();
     void restoreConfig();
     void switchNow();
+    void onoff();
 
     // LED algorithms
     void monocolor();

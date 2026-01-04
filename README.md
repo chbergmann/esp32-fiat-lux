@@ -9,6 +9,7 @@ Use your LED strip as a clock.
 - Select different modes for let yor LED strip from a website
 - SNTP get the current time from the internet  
   
+<img width="32" height="32" src="website/power-symbol-svgrepo-com.svg" alt="on/off"> ON/OFF  
 <img width="32" height="32" src="website/zahnrad.svg" alt="settings"> Set number of LEDs, starting point, direction, ...  
 <img width="32" height="32" src="website/rainbow.svg" alt="rainbow"> Rainbow colors  
 <img width="32" height="32" src="website/clock-rainbow.svg" alt="rainbow"> blue in the morning, green in the afternoon, red in the night  

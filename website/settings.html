@@ -10,7 +10,7 @@
 <body onload="loadSettings()" id="settingspage">
     <div class="h1list"><img src="zahnrad.svg" class="gear"> <img src="favicon.svg" class="favicon"> <img src="zahnrad.svg" class="gear"></div>
     <form action="/set" id="settingslist">
-        <table>
+        <table id="tab1">
             <tr><td class="setlbl"><label for="nr_leds">Nr. LEDs </label></td>
                 <td><input class="txtinp" id="nr_leds" type="text" name="nr_leds"></td></tr>
             <tr><td class="setlbl"><label for="nr_leds">1st LED </label></td>
@@ -22,7 +22,7 @@
             <img class="imgbutton" id="imgleft" src="round-arrow-6-svgrepo-com.svg" onclick="setRotation('left')">
             <img class="imgbutton" id="imgright" src="round-arrow-5-svgrepo-com.svg" onclick="setRotation('right')">
         </div>
-        <input type="submit" value="OK">
+        <input id="btnsubmit" class="imgbutton" type="submit" value="OK">
     </form>
 </body>
 </html>

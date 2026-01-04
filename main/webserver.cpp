@@ -45,18 +45,6 @@
 
 static const char *TAG = "webserver";
 
-static const char* SITES[] = {
-    "/mono",
-    "/rainbowclk",
-    "/rainbow",
-    "/speed",
-    "/led",
-    "/values",
-    "/set",
-    "/walk",
-    "/clock2"
-};
-
 Webserver::Webserver(const char* spffs_path) :
     ledstrip(spffs_path)
 {
@@ -220,6 +208,12 @@ static esp_err_t c_led_val_handler(httpd_req_t *req)
     return webserver->led_val_handler(req);
 }
 
+static esp_err_t c_led_power_handler(httpd_req_t *req)
+{
+    ESP_LOGI(TAG, "GET %s", req->uri);
+    Webserver* webserver = (Webserver*)req->user_ctx;
+    return webserver->led_power_handler(req);
+}
 
 /* An HTTP GET handler */
 esp_err_t Webserver::led_get_handler(httpd_req_t *req)
@@ -332,6 +326,15 @@ esp_err_t Webserver::led_val_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+esp_err_t Webserver::led_power_handler(httpd_req_t *req)
+{
+    ledstrip.onoff();
+
+    httpd_resp_send(req, NULL, 0);
+    /* After sending the HTTP response the old HTTP request headers are lost. */
+    return ESP_OK;
+}
+
 /* This handler allows the custom error handling functionality to be
  * tested from client side. For that, when a PUT request 0 is sent to
  * URI /ctrl, the /hello and /echo URIs are unregistered and following
@@ -400,6 +403,7 @@ esp_err_t Webserver::start(void)
     }
     handlers[URI_VALUES].handler   = c_led_val_handler;
     handlers[URI_SET].handler   = c_led_set_handler;
+    handlers[URI_POWER].handler   = c_led_power_handler;
 
 #if CONFIG_IDF_TARGET_LINUX
     // Setting port as 8001 when building for Linux. Port 80 can be used only by a privileged user in linux.

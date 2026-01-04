@@ -108,3 +108,9 @@ function clock2()
     const url = `/clock2?bright=${mycolor.value}`;
     trigger_restapi(url)
 }
+
+function onoff()
+{
+    const url = `/power`;
+    trigger_restapi(url)
+}

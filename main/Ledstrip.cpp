@@ -31,6 +31,7 @@ Ledstrip::Ledstrip(const char *spiffs_path)
     rmt_pixels = NULL;
     mainTask = 0;
     lastSec = -1;
+    power = true;
 
     led_chan = NULL;
     led_encoder = NULL;
@@ -125,6 +126,7 @@ void Ledstrip::restoreConfig()
     cfg.num_leds = EXAMPLE_LED_NUMBERS;
     cfg.bright = 100;
     cfg.color1.red = 255;
+    cfg.speed = SPEED_MAX_VAL / 2;
 
     FILE* f = fopen(cfgfile_path, "r");
     if (f == NULL) 
@@ -322,7 +324,11 @@ void Ledstrip::clock2()
 
 void Ledstrip::switchLeds()
 {
-    switch(cfg.algorithm)
+    if(!power)
+    {
+        dark();
+    }
+    else switch(cfg.algorithm)
     {
         case ALGO_MONO: monocolor(); break;
         case ALGO_RAINBOW: rainbow(); break;
@@ -368,6 +374,9 @@ void Ledstrip::loop()
                 break;
         }
 
+        if(!power)
+            period = 1000000;
+
         TickType_t diff = xTaskGetTickCount() - lastWakeTime;
         if(pdMS_TO_TICKS(period) > diff)
             vTaskDelay(pdMS_TO_TICKS(period) - diff);
@@ -376,5 +385,12 @@ void Ledstrip::loop()
 
 void Ledstrip::switchNow()
 {
+    power = true;
+    xTaskAbortDelay( mainTask );
+}
+
+void Ledstrip::onoff()
+{
+    power = !power;
     xTaskAbortDelay( mainTask );
 }
