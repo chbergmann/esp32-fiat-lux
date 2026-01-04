@@ -343,6 +343,7 @@ esp_err_t Webserver::led_val_handler(httpd_req_t *req)
 esp_err_t Webserver::led_power_handler(httpd_req_t *req)
 {
     ledstrip.onoff();
+    ledstrip.saveConfig();
 
     httpd_resp_send(req, NULL, 0);
     /* After sending the HTTP response the old HTTP request headers are lost. */
