@@ -71,3 +71,7 @@ See the Getting Started Guide for all the steps to configure and use the ESP-IDF
 ## Troubleshooting
 
 For any technical queries, please open an [issue](https://github.com/espressif/esp-idf/issues) on GitHub. We will get back to you soon.
+
+## License
+
+[GNU GENERAL PUBLIC LICENSE Version 3](https://www.gnu.org/licenses/gpl-3.0.en.html)
