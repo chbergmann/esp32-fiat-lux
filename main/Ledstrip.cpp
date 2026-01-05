@@ -126,6 +126,7 @@ void Ledstrip::restoreConfig()
     cfg.num_leds = EXAMPLE_LED_NUMBERS;
     cfg.bright = 100;
     cfg.color1.red = 255;
+    cfg.color2.blue = 255;
     cfg.gradients = 1;
     cfg.power = true;
 
@@ -366,11 +367,25 @@ void Ledstrip::clock2()
         led_strip_pixels[j].blue = blue;
     }
 
+    if(cfg.num_leds >= 60)
+    {
+        for (int i = 0; i < cfg.num_leds; i += cfg.num_leds/12)
+        {
+            led_strip_pixels[i] = cfg.color2;
+        }
+    }
+
     uint32_t hourleds = (cfg.num_leds * timeinfo.tm_hour / 24 + cfg.led1) % cfg.num_leds;
+    int nr_leds = cfg.num_leds / 60;
+    nr_leds = nr_leds * 2 + 1;
+    hourleds -= nr_leds / 2;
     led_strip_hsv2rgb(hue, 100, 100, &red, &green, &blue);
-    led_strip_pixels[hourleds].green = green;
-    led_strip_pixels[hourleds].red = red;
-    led_strip_pixels[hourleds].blue = blue;
+    for (int i = 0; i < nr_leds; i ++)
+    {
+        led_strip_pixels[hourleds + i].green = green;
+        led_strip_pixels[hourleds + i].red = red;
+        led_strip_pixels[hourleds + i].blue = blue;
+    }
 
     uint32_t secleds = (cfg.num_leds * timeinfo.tm_sec / 60 + cfg.led1) % cfg.num_leds;
     led_strip_pixels[secleds] = cfg.color1;

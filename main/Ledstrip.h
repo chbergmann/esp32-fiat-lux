@@ -30,6 +30,7 @@ typedef struct
     bool counterclock;
     ledstrip_algo_t algorithm;
     color_t  color1;
+    color_t  color2;
     uint32_t bright;
     uint32_t speed;
     uint32_t gradients;

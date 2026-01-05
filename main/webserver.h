@@ -20,19 +20,6 @@ enum {
     NUM_HANDLERS
 };
 
-static const char* SITES[] = {
-    "/mono",
-    "/rainbowclk",
-    "/rainbow",
-    "/speed",
-    "/led",
-    "/values",
-    "/set",
-    "/walk",
-    "/clock2",
-    "/power",
-    "/gradient"
-};
 
 class Webserver {
     httpd_handle_t server;

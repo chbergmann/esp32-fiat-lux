@@ -45,6 +45,20 @@
 
 static const char *TAG = "webserver";
 
+static const char* SITES[NUM_HANDLERS] = {
+    "/mono",
+    "/rainbowclk",
+    "/rainbow",
+    "/speed",
+    "/led",
+    "/values",
+    "/set",
+    "/walk",
+    "/clock2",
+    "/power",
+    "/gradient"
+};
+
 Webserver::Webserver(const char* spffs_path) :
     ledstrip(spffs_path)
 {
@@ -230,6 +244,7 @@ esp_err_t Webserver::led_get_handler(httpd_req_t *req)
             ESP_LOGI(TAG, "Found URL query => %s", buf);
             char col[EXAMPLE_HTTP_QUERY_KEY_MAX_LEN] = {0};
             color_t* color = &ledstrip.cfg.color1;
+            ledstrip.cfg.color2 = ledstrip.cfg.color1;
             /* Get value of expected key from query string */
             if (httpd_query_key_value(buf, "red", col, sizeof(col)) == ESP_OK) {
                 color->red = (uint8_t)strtoul(col, NULL, 10);
