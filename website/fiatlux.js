@@ -22,15 +22,38 @@ function trigger_restapi(url)
 
 async function onLoad()
 {
+    var fun = "3" + "3" - "3";
+    console.log("\"3\" + \"3\" - \"3\" = ", fun);
+
     var brightness = 100;
     try {
-        const response = await fetch("/values");
+        const response1 = await fetch("/strips");
+        if (!response1.ok) {
+            throw new Error("HTTP error " + response1.status);
+        }
 
-        if (!response.ok) {
+        const data1 = await response1.json();
+        if(data1.nr_strips > 1)
+        {
+            var stripselect = document.getElementById("stripselect");
+            var html = "";
+            for(var i=0; i<data1.nr_strips; i+=1) {
+                html += `<button type='button' id='stripbtn${i}' class='imgbutton`;
+                if(i == data1.selected_strip) {
+                    html += " active";
+                }
+                html += `' onclick='stripselect(${i})'>Strip ${i}</button>`;
+            }
+            stripselect.innerHTML = html;
+        }
+
+        const response2 = await fetch(`/values?strip=${data1.selected_strip}`);
+
+        if (!response2.ok) {
             throw new Error("HTTP error " + response.status);
         }
 
-        const data = await response.json();
+        const data = await response2.json();
 
         // Extract the 3 variables
         hexString = "#" + data.red.toString(16).padStart(2, '0') + data.green.toString(16).padStart(2, '0') + data.blue.toString(16).padStart(2, '0');
@@ -76,49 +99,56 @@ async function onLoad()
 function mono()
 {
     const url = `/mono?red=${mycolor.red}&green=${mycolor.green}&blue=${mycolor.blue}`;
-    trigger_restapi(url)
+    trigger_restapi(url);
 }
 
 function gradient()
 {
     const url = `/gradient?red=${mycolor.red}&green=${mycolor.green}&blue=${mycolor.blue}`;
-    trigger_restapi(url)
+    trigger_restapi(url);
 }
 
 function rainbow()
 {
     const url = `/rainbow?bright=${mycolor.value}`;
-    trigger_restapi(url)
+    trigger_restapi(url);
 }
 
 function rainbowclk()
 {
     const url = `/rainbowclk?bright=${mycolor.value}`;
-    trigger_restapi(url)
+    trigger_restapi(url);
 }
 
 function walking()
 {
     var slider = document.getElementById("speedRange");
     const url = `/walk?red=${mycolor.red}&green=${mycolor.green}&blue=${mycolor.blue}&speed=${slider.value}`;
-    trigger_restapi(url)
+    trigger_restapi(url);
 }
 
 function speedSlide() 
 {
     var slider = document.getElementById("speedRange");
     const url = `/speed?speed=${slider.value}`;
-    trigger_restapi(url)
+    trigger_restapi(url);
 }
 
 function clock2()
 {
     const url = `/clock2?bright=${mycolor.value}`;
-    trigger_restapi(url)
+    trigger_restapi(url);
 }
 
 function onoff()
 {
     const url = `/power`;
-    trigger_restapi(url)
+    trigger_restapi(url);
+}
+
+function stripselect(nr)
+{
+    const url = `/led?strip=${nr}`;
+    trigger_restapi(url);
+    location.reload();
 }

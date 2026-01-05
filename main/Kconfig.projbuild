@@ -123,13 +123,21 @@ menu "Fiat Lux Configuration"
         string "Time zone"
         default "CET"
 
-    config LED_STRIP_GPIO_NUM
-        int "LED strip Din GPIO number"
+    config LED_STRIP1_GPIO_NUM
+        int "First LED strip Din GPIO number"
         default 18
 
+    config LED_STRIP2_GPIO_NUM
+        int "Second LED strip Din GPIO number. This GPIO number will be increased for the 3rd, 4th, ... LED strip"
+        default 10
+
     config LED_NUMBERS
-        int "Number of LEDs in strip"
+        int "Default number of LEDs in strip"
         default 5
+
+    config NR_LEDSTRIPS
+        int "Number of LED strips"
+        default 1
 
 endmenu
 menu "HTTP file_serving menu"

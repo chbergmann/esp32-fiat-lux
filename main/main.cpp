@@ -15,14 +15,12 @@
 #include "wifi_station.h"
 #include "sntp.h"
 #include "webserver.h"
-#include "file_server.h"
 
 static const char *TAG = "main";
 
 extern "C" void app_main(void)
 {
-    const char* spiffs_path = "/data";
-    Webserver webserver(spiffs_path);
+    Webserver webserver;
 
     //Initialize NVS
     esp_err_t ret = nvs_flash_init();
@@ -41,7 +39,8 @@ extern "C" void app_main(void)
 
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default() );
-    ESP_ERROR_CHECK(mount_storage(spiffs_path));
+
+    webserver.init_leds();
 
     ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
     wifi_init_sta();
@@ -54,9 +53,6 @@ extern "C" void app_main(void)
         sntp_start();
         /* Start the server for the first time */
         webserver.start();
-        ESP_ERROR_CHECK(start_file_server(webserver.get_server(), spiffs_path));
-        webserver.loop();
-
     } else if (bits & WIFI_FAIL_BIT) {
         ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s", CONFIG_ESP_WIFI_SSID, CONFIG_ESP_WIFI_PASSWORD);
         webserver.stop();

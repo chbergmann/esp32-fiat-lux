@@ -34,10 +34,11 @@
 #include "webserver.h"
 #include "esp_timer.h"
 #include "file_server.h"
+#include "freertos/task.h"
 
 #define EXAMPLE_HTTP_QUERY_KEY_MAX_LEN  (64)
 
-#define CYCLE_TIME_US   10000
+#define STACK_SIZE 256
 
 /* A simple example that demonstrates how to create GET and POST
  * handlers for the web server.
@@ -56,14 +57,17 @@ static const char* SITES[NUM_HANDLERS] = {
     "/walk",
     "/clock2",
     "/power",
-    "/gradient"
+    "/gradient",
+    "/strips"
 };
 
-Webserver::Webserver(const char* spffs_path) :
-    ledstrip(spffs_path)
+static const char* spiffs_path = "/data";
+
+Webserver::Webserver()
 {
     server = NULL;
-    spiffs_path = spffs_path;
+    stripnr = 0;
+    ESP_ERROR_CHECK(mount_storage(spiffs_path));
 }
 
 Webserver::~Webserver()
@@ -229,10 +233,41 @@ static esp_err_t c_led_power_handler(httpd_req_t *req)
     return webserver->led_power_handler(req);
 }
 
+static esp_err_t c_led_strip_handler(httpd_req_t *req)
+{
+    ESP_LOGI(TAG, "GET %s", req->uri);
+    Webserver* webserver = (Webserver*)req->user_ctx;
+    return webserver->led_strip_handler(req);
+}
+
+esp_err_t Webserver::parse_stripnr(httpd_req_t *req)
+{
+    size_t buf_len;
+    buf_len = httpd_req_get_url_query_len(req) + 1;
+    if (buf_len > 1) {
+        char buf[buf_len];
+        ESP_RETURN_ON_FALSE(buf, ESP_ERR_NO_MEM, TAG, "buffer alloc failed");
+        if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
+            ESP_LOGI(TAG, "Found URL query => %s", buf);
+            char col[EXAMPLE_HTTP_QUERY_KEY_MAX_LEN] = {0};
+            if (httpd_query_key_value(buf, "strip", col, sizeof(col)) == ESP_OK) {
+                uint32_t nr = strtoul(col, NULL, 10);
+                if(nr < NR_LEDSTRIPS) {
+                    stripnr = nr;
+                }
+            }
+        }
+    }
+    return ESP_OK;
+}
+
 /* An HTTP GET handler */
 esp_err_t Webserver::led_get_handler(httpd_req_t *req)
 {
     size_t buf_len;
+
+    parse_stripnr(req);
+    led_config_t* cfg = &ledstrip[stripnr].cfg;
 
     /* Read URL query string length and allocate memory for length + 1,
      * extra byte for null termination */
@@ -241,69 +276,67 @@ esp_err_t Webserver::led_get_handler(httpd_req_t *req)
         char buf[buf_len];
         ESP_RETURN_ON_FALSE(buf, ESP_ERR_NO_MEM, TAG, "buffer alloc failed");
         if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
-            ESP_LOGI(TAG, "Found URL query => %s", buf);
             char col[EXAMPLE_HTTP_QUERY_KEY_MAX_LEN] = {0};
-            color_t* color = &ledstrip.cfg.color1;
-            ledstrip.cfg.color2 = ledstrip.cfg.color1;
             /* Get value of expected key from query string */
             if (httpd_query_key_value(buf, "red", col, sizeof(col)) == ESP_OK) {
-                color->red = (uint8_t)strtoul(col, NULL, 10);
+                cfg->color2 = cfg->color1;
+                cfg->color1.red = (uint8_t)strtoul(col, NULL, 10);
             }
             if (httpd_query_key_value(buf, "green", col, sizeof(col)) == ESP_OK) {
-                color->green = (uint8_t)strtoul(col, NULL, 10);
+                cfg->color1.green = (uint8_t)strtoul(col, NULL, 10);
             }
             if (httpd_query_key_value(buf, "blue", col, sizeof(col)) == ESP_OK) {
-                color->blue = (uint8_t)strtoul(col, NULL, 10);
+                cfg->color1.blue = (uint8_t)strtoul(col, NULL, 10);
             }
             if (httpd_query_key_value(buf, "bright", col, sizeof(col)) == ESP_OK) {
-                ledstrip.cfg.bright = strtoul(col, NULL, 10);
+                cfg->bright = strtoul(col, NULL, 10);
             }
             if (httpd_query_key_value(buf, "speed", col, sizeof(col)) == ESP_OK) {
-                ledstrip.cfg.speed = strtoul(col, NULL, 10);
+                cfg->speed = strtoul(col, NULL, 10);
             }
         }
     }
 
     if(string(req->uri).find(SITES[URI_MONO]) != string::npos)
-        ledstrip.cfg.algorithm = ALGO_MONO;
+        cfg->algorithm = ALGO_MONO;
 
     else if(string(req->uri).find(SITES[URI_GRADIENT]) != string::npos)
     {
-        ledstrip.dark();
-        ledstrip.cfg.algorithm = ALGO_GRADIENT;
-        ledstrip.firstled(ledstrip.cfg.color1);
+        ledstrip[stripnr].dark();
+        cfg->algorithm = ALGO_GRADIENT;
+        ledstrip[stripnr].firstled(cfg->color1);
     }
 
     else if(string(req->uri).find(SITES[URI_RAINBOWCLK]) != string::npos)
-        ledstrip.cfg.algorithm = ALGO_RAINBOWCLK;
+        cfg->algorithm = ALGO_RAINBOWCLK;
 
     else if(string(req->uri).find(SITES[URI_RAINBOW]) != string::npos)
-        ledstrip.cfg.algorithm = ALGO_RAINBOW;
+        cfg->algorithm = ALGO_RAINBOW;
 
     else if(string(req->uri).find(SITES[URI_WALK]) != string::npos)
     {
-        ledstrip.dark();
-        ledstrip.cfg.algorithm = ALGO_WALK;
-        ledstrip.firstled(ledstrip.cfg.color1);
+        ledstrip[stripnr].dark();
+        cfg->algorithm = ALGO_WALK;
+        ledstrip[stripnr].firstled(cfg->color1);
     }
 
     else if(string(req->uri).find(SITES[URI_CLOCK2]) != string::npos)
-        ledstrip.cfg.algorithm = ALGO_CLOCK2;
+        cfg->algorithm = ALGO_CLOCK2;
 
     if(string(req->uri).find(SITES[URI_LED]) != string::npos)
     { 
-        if(ledstrip.cfg.algorithm == ALGO_WALK)
+        if(cfg->algorithm == ALGO_WALK)
         {
-            ledstrip.firstled(ledstrip.cfg.color1);
+            ledstrip[stripnr].firstled(cfg->color1);
         }
-        else if(ledstrip.cfg.algorithm == ALGO_GRADIENT)
+        else if(cfg->algorithm == ALGO_GRADIENT)
         {
-            ledstrip.add_gradient(ledstrip.cfg.color1);
+            ledstrip[stripnr].add_gradient(cfg->color1);
         }
     }
 
-    ledstrip.switchNow();
-    ledstrip.saveConfig();
+    ledstrip[stripnr].switchNow();
+    ledstrip[stripnr].saveConfig();
 
     httpd_resp_send(req, NULL, 0);
     /* After sending the HTTP response the old HTTP request headers are lost. */
@@ -316,6 +349,9 @@ esp_err_t Webserver::led_set_handler(httpd_req_t *req)
 {
     size_t buf_len;
 
+    parse_stripnr(req);
+    led_config_t* cfg = &ledstrip[stripnr].cfg;
+
     /* Read URL query string length and allocate memory for length + 1,
      * extra byte for null termination */
     buf_len = httpd_req_get_url_query_len(req) + 1;
@@ -323,22 +359,21 @@ esp_err_t Webserver::led_set_handler(httpd_req_t *req)
         char buf[buf_len];
         ESP_RETURN_ON_FALSE(buf, ESP_ERR_NO_MEM, TAG, "buffer alloc failed");
         if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
-            ESP_LOGI(TAG, "Found URL query => %s", buf);
             char col[EXAMPLE_HTTP_QUERY_KEY_MAX_LEN] = {0};
             /* Get value of expected key from query string */
             if (httpd_query_key_value(buf, "nr_leds", col, sizeof(col)) == ESP_OK) {
-                ledstrip.cfg.num_leds = strtoul(col, NULL, 10);
+                cfg->num_leds = strtoul(col, NULL, 10);
             }
             if (httpd_query_key_value(buf, "rotate", col, sizeof(col)) == ESP_OK) {
-                ledstrip.cfg.counterclock = string(col) == "left";
+                cfg->counterclock = string(col) == "left";
             }
             if (httpd_query_key_value(buf, "led1", col, sizeof(col)) == ESP_OK) {
-                ledstrip.cfg.led1 = strtoul(col, NULL, 10);
+                cfg->led1 = strtoul(col, NULL, 10);
             }
         }
     }
 
-    ledstrip.saveConfig();
+    ledstrip[stripnr].saveConfig();
 
     string redirect = "<meta http-equiv=\"refresh\" content=\"0; url=/index.html\" />";
     httpd_resp_send(req, redirect.c_str(), redirect.length());
@@ -348,7 +383,8 @@ esp_err_t Webserver::led_set_handler(httpd_req_t *req)
 
 esp_err_t Webserver::led_val_handler(httpd_req_t *req)
 {
-    string json = ledstrip.to_json(ledstrip.cfg);
+    parse_stripnr(req);
+    string json = ledstrip[stripnr].to_json(ledstrip[stripnr].cfg);
     
     httpd_resp_set_type(req, "application/json");
     httpd_resp_send(req, json.c_str(), json.length());
@@ -357,12 +393,23 @@ esp_err_t Webserver::led_val_handler(httpd_req_t *req)
 
 esp_err_t Webserver::led_power_handler(httpd_req_t *req)
 {
-    ledstrip.onoff();
-    ledstrip.saveConfig();
+    ledstrip[stripnr].onoff();
+    ledstrip[stripnr].saveConfig();
 
     httpd_resp_send(req, NULL, 0);
     /* After sending the HTTP response the old HTTP request headers are lost. */
     return ESP_OK;
+}
+
+esp_err_t Webserver::led_strip_handler(httpd_req_t *req)
+{
+    string json = "{" + 
+        Ledstrip::to_json("nr_strips", CONFIG_NR_LEDSTRIPS) + 
+        Ledstrip::to_json("selected_strip", stripnr) + 
+        "}";
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_send(req, json.c_str(), json.length());
+    return esp_err_t();
 }
 
 /* This handler allows the custom error handling functionality to be
@@ -420,6 +467,45 @@ static const httpd_uri_t sse = {
 };
 #endif // CONFIG_EXAMPLE_ENABLE_SSE_HANDLER
 
+void vLedstripTask( void * pvParameters )
+{
+    Ledstrip* ls = (Ledstrip*)pvParameters;
+    ls->loop();
+}
+
+esp_err_t Webserver::init_leds()
+{
+    esp_err_t ret = ESP_OK;
+
+    ledstrip[0].init(spiffs_path, CONFIG_LED_STRIP1_GPIO_NUM);
+    for(int i=1; i<NR_LEDSTRIPS; i++)
+    {
+        ledstrip[i].init(spiffs_path, CONFIG_LED_STRIP2_GPIO_NUM + i - 1);
+    }
+
+    for(int i=0; i<NR_LEDSTRIPS; i++)
+    {
+        BaseType_t xReturned;
+        TaskHandle_t xHandle = NULL;
+
+        /* Create the task, storing the handle. */
+        xReturned = xTaskCreate(
+                        vLedstripTask    ,       /* Function that implements the task. */
+                        "LedstripTask",          /* Text name for the task. */
+                        STACK_SIZE,      /* Stack size in words, not bytes. */
+                        &ledstrip[i],    /* Parameter passed into the task. */
+                        tskIDLE_PRIORITY,/* Priority at which the task is created. */
+                        &xHandle );      /* Used to pass out the created task's handle. */
+
+        if( xReturned != pdPASS )
+        {
+            ESP_LOGE(TAG, "could not create a task for ledstrip %d", i);
+            ret = ESP_FAIL;
+        }
+    } 
+    return ret;
+}
+
 esp_err_t Webserver::start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
@@ -434,6 +520,7 @@ esp_err_t Webserver::start(void)
     handlers[URI_VALUES].handler   = c_led_val_handler;
     handlers[URI_SET].handler   = c_led_set_handler;
     handlers[URI_POWER].handler   = c_led_power_handler;
+    handlers[URI_POWER].handler   = c_led_strip_handler;
 
 #if CONFIG_IDF_TARGET_LINUX
     // Setting port as 8001 when building for Linux. Port 80 can be used only by a privileged user in linux.
@@ -448,8 +535,6 @@ esp_err_t Webserver::start(void)
      * allow the same handler to respond to multiple different
      * target URIs which match the wildcard scheme */
     config.uri_match_fn = httpd_uri_match_wildcard;
-
-    ledstrip.init();
 
     // Start the httpd server
     ESP_LOGI(TAG, "Starting server on port: '%d'", config.server_port);
@@ -468,6 +553,8 @@ esp_err_t Webserver::start(void)
         return ESP_OK;
     }
 
+    ESP_ERROR_CHECK(start_file_server(server, spiffs_path));
+
     ESP_LOGI(TAG, "Error starting server!");
     return ESP_FAIL;
 }
@@ -482,8 +569,3 @@ esp_err_t Webserver::stop()
 }
 
 #endif // !CONFIG_IDF_TARGET_LINUX
-
-void Webserver::loop()
-{ 
-    ledstrip.loop();    
-}

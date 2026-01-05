@@ -5,8 +5,6 @@
 
 using namespace std;
 
-#define RMT_LED_STRIP_GPIO_NUM      CONFIG_LED_STRIP_GPIO_NUM
-
 typedef enum {
     ALGO_MONO,
     ALGO_GRADIENT,
@@ -49,7 +47,6 @@ class Ledstrip {
     TaskHandle_t mainTask;
     int lastSec;
 
-    static string to_json(const string& tag, uint32_t nr);
     void new_led_strip_pixels(uint32_t nr_leds);
     size_t led_strip_size() { return cfg.num_leds * 3; }
     void switchLeds();
@@ -58,11 +55,11 @@ class Ledstrip {
 public:
     led_config_t cfg;
 
-    Ledstrip(const char* spiffs_path);
+    Ledstrip();
     ~Ledstrip();
     void loop();
 
-    esp_err_t init();
+    esp_err_t init(const char* spiffs_path, int gpionr);
     void saveConfig();
     void restoreConfig();
     void switchNow();
@@ -80,4 +77,5 @@ public:
     void add_gradient(color_t color);
 
     string to_json(led_config_t& cfg);
+    static string to_json(const string& tag, uint32_t nr);
 };

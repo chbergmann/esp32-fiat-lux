@@ -23,22 +23,21 @@
 
 static const char *TAG = "leds";
 
-Ledstrip::Ledstrip(const char *spiffs_path)
+Ledstrip::Ledstrip()
 {
-    snprintf(cfgfile_path, sizeof(cfgfile_path), "%s/config.bin", spiffs_path);
     memset(&cfg, 0, sizeof(led_config_t));
     led_strip_pixels = NULL;
     rmt_pixels = NULL;
     mainTask = 0;
     lastSec = -1;
     startled = 0;
+    cfgfile_path[0] = 0;
 
     led_chan = NULL;
     led_encoder = NULL;
     memset(&tx_chan_config, 0, sizeof(tx_chan_config));
     memset(&tx_config, 0, sizeof(tx_config));
     tx_chan_config.clk_src = RMT_CLK_SRC_DEFAULT; // select source clock
-    tx_chan_config.gpio_num = (gpio_num_t)RMT_LED_STRIP_GPIO_NUM;
     tx_chan_config.mem_block_symbols = 64; // increase the block size can make the LED less flickering
     tx_chan_config.resolution_hz = RMT_LED_STRIP_RESOLUTION_HZ;
     tx_chan_config.trans_queue_depth = 4; // set the number of transactions that can be pending in the background
@@ -216,8 +215,10 @@ void Ledstrip::new_led_strip_pixels(uint32_t nr_leds)
 }
 
 
-esp_err_t Ledstrip::init()
+esp_err_t Ledstrip::init(const char *spiffs_path, int gpionr)
 {
+    tx_chan_config.gpio_num = (gpio_num_t)gpionr;
+    snprintf(cfgfile_path, sizeof(cfgfile_path), "%s/config%d.bin", spiffs_path, gpionr);
     restoreConfig();
     ESP_LOGI(TAG, "Create RMT TX channel");
     ESP_ERROR_CHECK(rmt_new_tx_channel(&tx_chan_config, &led_chan));

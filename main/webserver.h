@@ -5,6 +5,8 @@
 
 using namespace std;
 
+#define NR_LEDSTRIPS    CONFIG_NR_LEDSTRIPS
+
 enum {
     URI_MONO = 0,
     URI_RAINBOWCLK,
@@ -17,28 +19,31 @@ enum {
     URI_CLOCK2,
     URI_POWER,
     URI_GRADIENT,
+    URI_STRIPS,
     NUM_HANDLERS
 };
 
 
 class Webserver {
     httpd_handle_t server;
-    Ledstrip ledstrip;
+    Ledstrip ledstrip[NR_LEDSTRIPS];
     httpd_uri_t handlers[NUM_HANDLERS];
 
     uint32_t loop_delay;
-    const char* spiffs_path;
+    uint32_t stripnr;
+
+    esp_err_t parse_stripnr(httpd_req_t *req);
 
 public:
-    Webserver(const char* spiffs_path);
+    Webserver();
     ~Webserver();
 
+    esp_err_t init_leds();
     esp_err_t start();
     esp_err_t stop();
     esp_err_t led_get_handler(httpd_req_t *req);
     esp_err_t led_set_handler(httpd_req_t *req);
     esp_err_t led_val_handler(httpd_req_t *req);
     esp_err_t led_power_handler(httpd_req_t *req);
-    httpd_handle_t get_server() { return server; }
-    void loop();
+    esp_err_t led_strip_handler(httpd_req_t *req);
 };
