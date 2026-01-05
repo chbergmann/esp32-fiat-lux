@@ -7,19 +7,18 @@
 #include "freertos/FreeRTOS.h" 
 #include "freertos/task.h"
 #include "esp_log.h"
-#include "led_strip_encoder.h"
 #include "Ledstrip.h"
 #include <cmath>
 #include <errno.h>
 #include <time.h>
 #include <sys/time.h>
 
-#define RMT_LED_STRIP_RESOLUTION_HZ 10000000 // 10MHz resolution, 1 tick = 0.1us (led strip needs a high resolution)
 #define EXAMPLE_LED_NUMBERS         CONFIG_LED_NUMBERS
 #define MAX_LEDS 10000
 #define SPEED_MAX_VAL   100
 #define PERIOD_SECOND   1000
 #define PERIOD_MIN      10
+#define STACK_SIZE      CONFIG_ESP_MAIN_TASK_STACK_SIZE
 
 static const char *TAG = "leds";
 
@@ -32,16 +31,7 @@ Ledstrip::Ledstrip()
     lastSec = -1;
     startled = 0;
     cfgfile_path[0] = 0;
-
-    led_chan = NULL;
-    led_encoder = NULL;
-    memset(&tx_chan_config, 0, sizeof(tx_chan_config));
-    memset(&tx_config, 0, sizeof(tx_config));
-    tx_chan_config.clk_src = RMT_CLK_SRC_DEFAULT; // select source clock
-    tx_chan_config.mem_block_symbols = 64; // increase the block size can make the LED less flickering
-    tx_chan_config.resolution_hz = RMT_LED_STRIP_RESOLUTION_HZ;
-    tx_chan_config.trans_queue_depth = 4; // set the number of transactions that can be pending in the background
-    tx_config.loop_count = 0; // no transfer loop
+    rmt = NULL;
 }
 
 Ledstrip::~Ledstrip()
@@ -214,24 +204,36 @@ void Ledstrip::new_led_strip_pixels(uint32_t nr_leds)
     cfg.num_leds = nr_leds;
 }
 
-
-esp_err_t Ledstrip::init(const char *spiffs_path, int gpionr)
+void vLedstripTask( void * pvParameters )
 {
-    tx_chan_config.gpio_num = (gpio_num_t)gpionr;
+    Ledstrip* ls = (Ledstrip*)pvParameters;
+    ls->loop();
+}
+
+esp_err_t Ledstrip::init(const char *spiffs_path, RmtTxDriver* rmt_inst, gpio_num_t gpionr)
+{
+    rmt = rmt_inst;
+    gpio_nr = gpionr;
     snprintf(cfgfile_path, sizeof(cfgfile_path), "%s/config%d.bin", spiffs_path, gpionr);
     restoreConfig();
-    ESP_LOGI(TAG, "Create RMT TX channel");
-    ESP_ERROR_CHECK(rmt_new_tx_channel(&tx_chan_config, &led_chan));
 
-    ESP_LOGI(TAG, "Install led strip encoder");
-    led_strip_encoder_config_t encoder_config = {
-        .resolution = RMT_LED_STRIP_RESOLUTION_HZ,
-    };
-    ESP_ERROR_CHECK(rmt_new_led_strip_encoder(&encoder_config, &led_encoder));
+    BaseType_t xReturned;
+    TaskHandle_t xHandle = NULL;
 
-    ESP_LOGI(TAG, "Enable RMT TX channel");
-    ESP_ERROR_CHECK(rmt_enable(led_chan));
-    switchLeds();
+    /* Create the task, storing the handle. */
+    xReturned = xTaskCreate(
+                    vLedstripTask    ,       /* Function that implements the task. */
+                    "LedstripTask",          /* Text name for the task. */
+                    STACK_SIZE,      /* Stack size in words, not bytes. */
+                    this,    /* Parameter passed into the task. */
+                    tskIDLE_PRIORITY,/* Priority at which the task is created. */
+                    &xHandle );      /* Used to pass out the created task's handle. */
+
+    if( xReturned != pdPASS )
+    {
+        ESP_LOGE(TAG, "could not create a task for ledstrip at GPIO %d", gpionr);
+        return ESP_FAIL;
+    }
     return ESP_OK;
 }
 
@@ -420,18 +422,21 @@ void Ledstrip::switchLeds()
         }
     }
 
-    ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, rmt_pixels, led_strip_size(), &tx_config));
+    if(rmt)
+    {
+        rmt->transmit(gpio_nr, rmt_pixels, led_strip_size(), PERIOD_SECOND);
+    }
 }
 
 void Ledstrip::loop()
 {
     mainTask = xTaskGetCurrentTaskHandle();
+    ESP_LOGI(TAG, "started LED strip task at GPIO %d", gpio_nr);
     for (;;)
     {
         TickType_t period;
         TickType_t lastWakeTime = xTaskGetTickCount();
         switchLeds();  
-        rmt_tx_wait_all_done(led_chan, PERIOD_SECOND);
         
         switch(cfg.algorithm)
         {

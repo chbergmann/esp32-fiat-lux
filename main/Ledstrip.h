@@ -1,7 +1,7 @@
 #pragma once
 
-#include "driver/rmt_tx.h"
 #include <string>
+#include "RmtTxDriver.h"
 
 using namespace std;
 
@@ -36,16 +36,14 @@ typedef struct
 } led_config_t;
 
 class Ledstrip {
-    rmt_channel_handle_t led_chan;
-    rmt_tx_channel_config_t tx_chan_config; 
-    rmt_encoder_handle_t led_encoder;
-    rmt_transmit_config_t tx_config;
     color_t* led_strip_pixels;
     uint8_t* rmt_pixels;
     char cfgfile_path[32];
     uint32_t startled;
     TaskHandle_t mainTask;
     int lastSec;
+    RmtTxDriver* rmt;
+    gpio_num_t gpio_nr;
 
     void new_led_strip_pixels(uint32_t nr_leds);
     size_t led_strip_size() { return cfg.num_leds * 3; }
@@ -59,7 +57,7 @@ public:
     ~Ledstrip();
     void loop();
 
-    esp_err_t init(const char* spiffs_path, int gpionr);
+    esp_err_t init(const char* spiffs_path, RmtTxDriver* rmt_inst, gpio_num_t gpionr);
     void saveConfig();
     void restoreConfig();
     void switchNow();

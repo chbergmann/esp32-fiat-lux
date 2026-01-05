@@ -38,8 +38,6 @@
 
 #define EXAMPLE_HTTP_QUERY_KEY_MAX_LEN  (64)
 
-#define STACK_SIZE 256
-
 /* A simple example that demonstrates how to create GET and POST
  * handlers for the web server.
  */
@@ -67,7 +65,6 @@ Webserver::Webserver()
 {
     server = NULL;
     stripnr = 0;
-    ESP_ERROR_CHECK(mount_storage(spiffs_path));
 }
 
 Webserver::~Webserver()
@@ -404,7 +401,7 @@ esp_err_t Webserver::led_power_handler(httpd_req_t *req)
 esp_err_t Webserver::led_strip_handler(httpd_req_t *req)
 {
     string json = "{" + 
-        Ledstrip::to_json("nr_strips", CONFIG_NR_LEDSTRIPS) + 
+        Ledstrip::to_json("nr_strips", CONFIG_NR_LEDSTRIPS) + "," +
         Ledstrip::to_json("selected_strip", stripnr) + 
         "}";
     httpd_resp_set_type(req, "application/json");
@@ -467,42 +464,25 @@ static const httpd_uri_t sse = {
 };
 #endif // CONFIG_EXAMPLE_ENABLE_SSE_HANDLER
 
-void vLedstripTask( void * pvParameters )
-{
-    Ledstrip* ls = (Ledstrip*)pvParameters;
-    ls->loop();
-}
-
 esp_err_t Webserver::init_leds()
 {
     esp_err_t ret = ESP_OK;
+    ESP_ERROR_CHECK(mount_storage(spiffs_path));
 
-    ledstrip[0].init(spiffs_path, CONFIG_LED_STRIP1_GPIO_NUM);
-    for(int i=1; i<NR_LEDSTRIPS; i++)
-    {
-        ledstrip[i].init(spiffs_path, CONFIG_LED_STRIP2_GPIO_NUM + i - 1);
-    }
-
+    rmt.init((gpio_num_t)CONFIG_LED_STRIP1_GPIO_NUM);
     for(int i=0; i<NR_LEDSTRIPS; i++)
     {
-        BaseType_t xReturned;
-        TaskHandle_t xHandle = NULL;
+        int gpio = CONFIG_LED_STRIP1_GPIO_NUM;
+        if(i > 0)
+            gpio = CONFIG_LED_STRIP2_GPIO_NUM + i - 1;
 
-        /* Create the task, storing the handle. */
-        xReturned = xTaskCreate(
-                        vLedstripTask    ,       /* Function that implements the task. */
-                        "LedstripTask",          /* Text name for the task. */
-                        STACK_SIZE,      /* Stack size in words, not bytes. */
-                        &ledstrip[i],    /* Parameter passed into the task. */
-                        tskIDLE_PRIORITY,/* Priority at which the task is created. */
-                        &xHandle );      /* Used to pass out the created task's handle. */
-
-        if( xReturned != pdPASS )
+        ret = ledstrip[i].init(spiffs_path, &rmt, (gpio_num_t)gpio);
+        if(ret != ESP_OK)
         {
-            ESP_LOGE(TAG, "could not create a task for ledstrip %d", i);
-            ret = ESP_FAIL;
+            ESP_LOGE(TAG, "failed to initialize ledstripat GPIO %d", gpio);
+            break;
         }
-    } 
+    }
     return ret;
 }
 
@@ -520,7 +500,7 @@ esp_err_t Webserver::start(void)
     handlers[URI_VALUES].handler   = c_led_val_handler;
     handlers[URI_SET].handler   = c_led_set_handler;
     handlers[URI_POWER].handler   = c_led_power_handler;
-    handlers[URI_POWER].handler   = c_led_strip_handler;
+    handlers[URI_STRIPS].handler   = c_led_strip_handler;
 
 #if CONFIG_IDF_TARGET_LINUX
     // Setting port as 8001 when building for Linux. Port 80 can be used only by a privileged user in linux.
@@ -544,6 +524,7 @@ esp_err_t Webserver::start(void)
         for(int i=0; i<NUM_HANDLERS; i++) { 
             httpd_register_uri_handler(server, &handlers[i]);
         }
+        ESP_ERROR_CHECK(start_file_server(server, spiffs_path));
 #if CONFIG_EXAMPLE_ENABLE_SSE_HANDLER
         httpd_register_uri_handler(server, &sse); // Register SSE handler
 #endif
@@ -552,8 +533,6 @@ esp_err_t Webserver::start(void)
 #endif
         return ESP_OK;
     }
-
-    ESP_ERROR_CHECK(start_file_server(server, spiffs_path));
 
     ESP_LOGI(TAG, "Error starting server!");
     return ESP_FAIL;

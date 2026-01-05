@@ -1,6 +1,7 @@
 #pragma once
 #include "esp_http_server.h"
 #include "Ledstrip.h"
+#include "RmtTxDriver.h"
 #include <string.h>
 
 using namespace std;
@@ -28,6 +29,7 @@ class Webserver {
     httpd_handle_t server;
     Ledstrip ledstrip[NR_LEDSTRIPS];
     httpd_uri_t handlers[NUM_HANDLERS];
+    RmtTxDriver rmt;
 
     uint32_t loop_delay;
     uint32_t stripnr;

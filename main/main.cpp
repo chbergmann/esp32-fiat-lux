@@ -40,7 +40,7 @@ extern "C" void app_main(void)
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default() );
 
-    webserver.init_leds();
+    ESP_ERROR_CHECK(webserver.init_leds());
 
     ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
     wifi_init_sta();
@@ -53,6 +53,9 @@ extern "C" void app_main(void)
         sntp_start();
         /* Start the server for the first time */
         webserver.start();
+        while(true)
+            vTaskDelay(1000000);
+            
     } else if (bits & WIFI_FAIL_BIT) {
         ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s", CONFIG_ESP_WIFI_SSID, CONFIG_ESP_WIFI_PASSWORD);
         webserver.stop();
