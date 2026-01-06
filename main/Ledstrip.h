@@ -33,6 +33,7 @@ typedef struct
     uint32_t speed;
     uint32_t gradients;
     bool power;
+    char name[16];
 } led_config_t;
 
 class Ledstrip {

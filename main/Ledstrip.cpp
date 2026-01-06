@@ -118,6 +118,7 @@ void Ledstrip::restoreConfig()
     cfg.color2.blue = 255;
     cfg.gradients = 1;
     cfg.power = true;
+    sprintf(cfg.name, "Strip GPIO%d", gpio_nr);
 
     FILE* f = fopen(cfgfile_path, "r");
     if (f == NULL) 
@@ -179,7 +180,8 @@ string Ledstrip::to_json(led_config_t& cfg)
         to_json("bright", cfg.bright) + "," +
         to_json("nr_leds", cfg.num_leds) + "," +
         to_json("led1", cfg.led1) + "," +
-        "\"rotate\":" + (cfg.counterclock ? "\"left\"" : "\"right\"") +
+        "\"rotate\":" + (cfg.counterclock ? "\"left\"" : "\"right\"") + "," +
+        "\"name\":\"" + string(cfg.name) + "\"" +
         "}";
 }
 

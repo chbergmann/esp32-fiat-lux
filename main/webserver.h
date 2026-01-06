@@ -34,7 +34,7 @@ class Webserver {
     uint32_t loop_delay;
     uint32_t stripnr;
 
-    esp_err_t parse_stripnr(httpd_req_t *req);
+    bool parse_stripnr(httpd_req_t *req);
 
 public:
     Webserver();

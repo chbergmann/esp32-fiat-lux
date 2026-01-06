@@ -237,9 +237,10 @@ static esp_err_t c_led_strip_handler(httpd_req_t *req)
     return webserver->led_strip_handler(req);
 }
 
-esp_err_t Webserver::parse_stripnr(httpd_req_t *req)
+bool Webserver::parse_stripnr(httpd_req_t *req)
 {
     size_t buf_len;
+    bool changed = false;
     buf_len = httpd_req_get_url_query_len(req) + 1;
     if (buf_len > 1) {
         char buf[buf_len];
@@ -249,13 +250,14 @@ esp_err_t Webserver::parse_stripnr(httpd_req_t *req)
             char col[EXAMPLE_HTTP_QUERY_KEY_MAX_LEN] = {0};
             if (httpd_query_key_value(buf, "strip", col, sizeof(col)) == ESP_OK) {
                 uint32_t nr = strtoul(col, NULL, 10);
-                if(nr < NR_LEDSTRIPS) {
+                if(nr < NR_LEDSTRIPS && stripnr != nr) {
                     stripnr = nr;
+                    changed = true;
                 }
             }
         }
     }
-    return ESP_OK;
+    return changed;
 }
 
 /* An HTTP GET handler */
@@ -263,7 +265,7 @@ esp_err_t Webserver::led_get_handler(httpd_req_t *req)
 {
     size_t buf_len;
 
-    parse_stripnr(req);
+    bool strip_changed = parse_stripnr(req);
     led_config_t* cfg = &ledstrip[stripnr].cfg;
 
     /* Read URL query string length and allocate memory for length + 1,
@@ -335,8 +337,13 @@ esp_err_t Webserver::led_get_handler(httpd_req_t *req)
     ledstrip[stripnr].switchNow();
     ledstrip[stripnr].saveConfig();
 
-    httpd_resp_send(req, NULL, 0);
-    /* After sending the HTTP response the old HTTP request headers are lost. */
+    if(strip_changed) {
+        string result = "RELOAD";
+        httpd_resp_send(req, result.c_str(), result.length());
+    }
+    else {
+        httpd_resp_send(req, NULL, 0);
+    }
     return ESP_OK;
 }
 
@@ -366,6 +373,12 @@ esp_err_t Webserver::led_set_handler(httpd_req_t *req)
             }
             if (httpd_query_key_value(buf, "led1", col, sizeof(col)) == ESP_OK) {
                 cfg->led1 = strtoul(col, NULL, 10);
+            }
+            if (httpd_query_key_value(buf, "stripname", cfg->name, sizeof(cfg->name)) == ESP_OK) {
+                for(int i=0; i<sizeof(cfg->name); i++) {
+                    if(cfg->name[i] == '+')
+                        cfg->name[i] = ' ';
+                }
             }
         }
     }
@@ -401,9 +414,18 @@ esp_err_t Webserver::led_power_handler(httpd_req_t *req)
 esp_err_t Webserver::led_strip_handler(httpd_req_t *req)
 {
     string json = "{" + 
-        Ledstrip::to_json("nr_strips", CONFIG_NR_LEDSTRIPS) + "," +
-        Ledstrip::to_json("selected_strip", stripnr) + 
-        "}";
+        Ledstrip::to_json("nr_strips", NR_LEDSTRIPS) + "," +
+        Ledstrip::to_json("selected_strip", stripnr) + "," +
+        "\"name\":[";
+
+    for(int i=0; i<NR_LEDSTRIPS; i++)
+    {
+        if(i > 0)
+            json += ",";
+
+        json += "\"" + string(ledstrip[i].cfg.name) + "\"";
+    }
+    json += "]}";
     httpd_resp_set_type(req, "application/json");
     httpd_resp_send(req, json.c_str(), json.length());
     return esp_err_t();
@@ -497,10 +519,10 @@ esp_err_t Webserver::start(void)
         handlers[i].user_ctx  = this;
         handlers[i].uri = SITES[i];
     }
-    handlers[URI_VALUES].handler   = c_led_val_handler;
-    handlers[URI_SET].handler   = c_led_set_handler;
-    handlers[URI_POWER].handler   = c_led_power_handler;
-    handlers[URI_STRIPS].handler   = c_led_strip_handler;
+    handlers[URI_VALUES].handler = c_led_val_handler;
+    handlers[URI_SET].handler    = c_led_set_handler;
+    handlers[URI_POWER].handler  = c_led_power_handler;
+    handlers[URI_STRIPS].handler = c_led_strip_handler;
 
 #if CONFIG_IDF_TARGET_LINUX
     // Setting port as 8001 when building for Linux. Port 80 can be used only by a privileged user in linux.

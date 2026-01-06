@@ -13,6 +13,9 @@ function trigger_restapi(url)
         return response.text(); 
     })
     .then(result => {
+        if(result == "RELOAD") {
+            location.reload();
+        }
         // console.log("API response:", result);
     })
     .catch(error => {
@@ -22,9 +25,6 @@ function trigger_restapi(url)
 
 async function onLoad()
 {
-    var fun = "3" + "3" - "3";
-    console.log("\"3\" + \"3\" - \"3\" = ", fun);
-
     var brightness = 100;
     try {
         const response1 = await fetch("/strips");
@@ -42,7 +42,7 @@ async function onLoad()
                 if(i == data1.selected_strip) {
                     html += " active";
                 }
-                html += `' onclick='stripselect(${i})'>Strip ${i}</button>`;
+                html += `' onclick='stripselect(${i})'>${data1.name[i]}</button>`;
             }
             stripselect.innerHTML = html;
         }
@@ -150,5 +150,4 @@ function stripselect(nr)
 {
     const url = `/led?strip=${nr}`;
     trigger_restapi(url);
-    location.reload();
 }
