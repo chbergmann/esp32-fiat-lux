@@ -141,7 +141,6 @@ void Ledstrip::restoreConfig()
         }
         fclose(f);
     }
-    startled = cfg.led1;
 }
 
 void Ledstrip::dark()
@@ -166,7 +165,7 @@ void Ledstrip::walk()
 
 void Ledstrip::firstled(color_t color)
 {
-    led_strip_pixels[cfg.led1 % cfg.num_leds] = color;
+    led_strip_pixels[0] = color;
     cfg.gradients = 1;
 }
 
@@ -277,6 +276,14 @@ uint8_t Ledstrip::get_gradient(uint8_t color1, uint8_t color2, int a, int b, int
     return ret;
 }
 
+int Ledstrip::in_range(int lednr)
+{
+    if(lednr < 0)
+        lednr += cfg.num_leds;
+
+    return lednr % cfg.num_leds;
+}
+
 void Ledstrip::gradient()
 {
     int gradients = cfg.gradients;
@@ -349,8 +356,10 @@ void Ledstrip::clock2()
     char strftime_buf[64];
     uint16_t hue = 0;
     uint32_t red, green, blue;
+    struct timeval tv_now;
 
     time(&now);
+    gettimeofday(&tv_now, NULL);
     localtime_r(&now, &timeinfo);
     if(lastSec != timeinfo.tm_sec)
     {
@@ -364,7 +373,7 @@ void Ledstrip::clock2()
     hue = 359 - (now * 360 / (24*60*60) % 360);
     led_strip_hsv2rgb(hue, 100, 5, &red, &green, &blue);
     
-    uint32_t minuteleds = (cfg.num_leds * timeinfo.tm_min / 60 + cfg.led1) % cfg.num_leds;
+    uint32_t minuteleds = cfg.num_leds * timeinfo.tm_min / 60;
     for (int j = 0; j < minuteleds; j ++)
     {
         led_strip_pixels[j].green = green;
@@ -374,25 +383,35 @@ void Ledstrip::clock2()
 
     if(cfg.num_leds >= 60)
     {
-        for (int i = 0; i < cfg.num_leds; i += cfg.num_leds/12)
+        for (int i = 0; i < 12; i++)
         {
-            led_strip_pixels[i] = cfg.color2;
+            int w;
+            if(i == 0)
+                w = 2;
+            else if(i % 3 == 0)
+                w = 1;
+            else
+                w = 0;
+
+            for (int n = -w; n <= w; n ++)
+            {
+                int l = cfg.num_leds * i / 12 + n;
+                led_strip_pixels[in_range(l)] = cfg.color2;
+            }
         }
     }
 
-    uint32_t hourleds = (cfg.num_leds * timeinfo.tm_hour / 24 + cfg.led1) % cfg.num_leds;
-    int nr_leds = cfg.num_leds / 60;
-    nr_leds = nr_leds * 2 + 1;
-    hourleds -= nr_leds / 2;
-    led_strip_hsv2rgb(hue, 100, 100, &red, &green, &blue);
-    for (int i = 0; i < nr_leds; i ++)
+    uint32_t hourleds = cfg.num_leds * ((timeinfo.tm_hour%12) * 60 + timeinfo.tm_min) / (12*60);
+    led_strip_hsv2rgb(hue + 180, 100, 100, &red, &green, &blue);
+    for (int i = -1; i <= 1; i ++)
     {
-        led_strip_pixels[hourleds + i].green = green;
-        led_strip_pixels[hourleds + i].red = red;
-        led_strip_pixels[hourleds + i].blue = blue;
+        int l = in_range(hourleds + i);
+        led_strip_pixels[l].green = green;
+        led_strip_pixels[l].red = red;
+        led_strip_pixels[l].blue = blue;
     }
 
-    uint32_t secleds = (cfg.num_leds * timeinfo.tm_sec / 60 + cfg.led1) % cfg.num_leds;
+    uint32_t secleds = cfg.num_leds * ((tv_now.tv_sec % 60) * 1000 + tv_now.tv_usec / 1000) / 60000;
     led_strip_pixels[secleds] = cfg.color1;
 }
 
@@ -417,7 +436,7 @@ void Ledstrip::switchLeds()
         for(int i=0; i<cfg.num_leds; i++)
         {
             int j = cfg.counterclock ? cfg.num_leds - 1 - i : i;
-            int n = (i + startled) * 3 % led_strip_size();
+            int n = in_range(i + startled + cfg.led1) * 3;
             rmt_pixels[n + 0] = led_strip_pixels[j].green;
             rmt_pixels[n + 1] = led_strip_pixels[j].red;
             rmt_pixels[n + 2] = led_strip_pixels[j].blue;
@@ -445,7 +464,7 @@ void Ledstrip::loop()
             case ALGO_RAINBOW:
             case ALGO_WALK:
             case ALGO_GRADIENT:
-                period = 10 * PERIOD_SECOND * (SPEED_MAX_VAL + 1 - cfg.speed) / SPEED_MAX_VAL / cfg.num_leds;
+                period = (SPEED_MAX_VAL - cfg.speed) * (SPEED_MAX_VAL - cfg.speed);
                 break;
 
             case ALGO_CLOCK2:

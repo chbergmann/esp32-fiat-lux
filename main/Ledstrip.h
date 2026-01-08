@@ -50,6 +50,7 @@ class Ledstrip {
     size_t led_strip_size() { return cfg.num_leds * 3; }
     void switchLeds();
     static uint8_t get_gradient(uint8_t color1, uint8_t color2, int a, int b, int i);
+    int in_range(int lednr);
 
 public:
     led_config_t cfg;
