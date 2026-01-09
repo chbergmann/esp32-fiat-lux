@@ -5,7 +5,7 @@
   #settingspage { width:30%; text-align:center; } 
 }
 .h1list { width:100%; display: flex; flex-direction: row; justify-content: space-between; margin-bottom:1em; }
-.imgbutton { margin: 1em; width:18%; aspect-ratio: 4/3; }
+.imgbutton { margin: 1em; width:12%; aspect-ratio: 4/3; }
 .buttonlist { width:100%; display: flex; flex-direction: row; justify-content: space-around; }
 .gear { height: 2em; }
 .favicon { height: 2em; }
@@ -14,5 +14,5 @@
 .inactive { border: none; padding:7px }
 .setline { width:100%; }
 #tab1 { width:100%; }
-.setlbl { font-size:xx-large }
-.txtinp { font-size:xx-large }
+.setlbl { font-size:x-large }
+.txtinp { font-size:x-large }

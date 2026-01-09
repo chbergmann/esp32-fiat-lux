@@ -19,4 +19,6 @@ public:
     esp_err_t init(gpio_num_t gpionr);
     esp_err_t transmit(gpio_num_t gpionr, uint8_t* pixels, size_t nr_pixels, int timeout_ms);
     esp_err_t transmit(uint8_t* pixels, size_t nr_pixels, int timeout_ms);
+    esp_err_t lock(int timeout_ms);
+    void unlock();
 };

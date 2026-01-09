@@ -33,6 +33,7 @@ class Webserver {
 
     uint32_t loop_delay;
     uint32_t stripnr;
+    int colorcnt;
 
     bool parse_stripnr(httpd_req_t *req);
 

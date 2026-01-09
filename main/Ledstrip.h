@@ -78,4 +78,5 @@ public:
 
     string to_json(led_config_t& cfg);
     static string to_json(const string& tag, uint32_t nr);
+    static string to_json(const string& tag, const string& str);
 };

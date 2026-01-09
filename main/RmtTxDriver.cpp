@@ -50,9 +50,22 @@ esp_err_t RmtTxDriver::transmit(uint8_t* pixels, size_t nr_pixels, int timeout_m
     return ret;
 }
 
-esp_err_t RmtTxDriver::transmit(gpio_num_t gpionr, uint8_t *pixels, size_t nr_pixels, int timeout_ms)
+esp_err_t RmtTxDriver::lock(int timeout_ms)
 {
     if(!xSemaphoreTake(mutex, pdMS_TO_TICKS(timeout_ms)))
+        return ESP_ERR_TIMEOUT;
+
+    return ESP_OK;
+}
+
+void RmtTxDriver::unlock()
+{
+    xSemaphoreGive(mutex);
+}
+
+esp_err_t RmtTxDriver::transmit(gpio_num_t gpionr, uint8_t *pixels, size_t nr_pixels, int timeout_ms)
+{
+    if(lock(timeout_ms) != ESP_OK)
         return ESP_ERR_TIMEOUT;
 
     if(gpionr != tx_chan_config.gpio_num)
@@ -64,7 +77,6 @@ esp_err_t RmtTxDriver::transmit(gpio_num_t gpionr, uint8_t *pixels, size_t nr_pi
     }
 
     esp_err_t ret = transmit(pixels, nr_pixels, timeout_ms);
-
-    xSemaphoreGive(mutex);
+    unlock();
     return ret;
 }

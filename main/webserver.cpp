@@ -65,6 +65,7 @@ Webserver::Webserver()
 {
     server = NULL;
     stripnr = 0;
+    colorcnt = 0;
 }
 
 Webserver::~Webserver()
@@ -275,20 +276,36 @@ esp_err_t Webserver::led_get_handler(httpd_req_t *req)
         char buf[buf_len];
         ESP_RETURN_ON_FALSE(buf, ESP_ERR_NO_MEM, TAG, "buffer alloc failed");
         if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
+            bool bright_changed = false;
             char col[EXAMPLE_HTTP_QUERY_KEY_MAX_LEN] = {0};
             /* Get value of expected key from query string */
-            if (httpd_query_key_value(buf, "red", col, sizeof(col)) == ESP_OK) {
-                cfg->color2 = cfg->color1;
-                cfg->color1.red = (uint8_t)strtoul(col, NULL, 10);
-            }
-            if (httpd_query_key_value(buf, "green", col, sizeof(col)) == ESP_OK) {
-                cfg->color1.green = (uint8_t)strtoul(col, NULL, 10);
-            }
-            if (httpd_query_key_value(buf, "blue", col, sizeof(col)) == ESP_OK) {
-                cfg->color1.blue = (uint8_t)strtoul(col, NULL, 10);
-            }
             if (httpd_query_key_value(buf, "bright", col, sizeof(col)) == ESP_OK) {
-                cfg->bright = strtoul(col, NULL, 10);
+                uint32_t bright = strtoul(col, NULL, 10);
+                if(bright != cfg->bright) {
+                    cfg->bright = bright;
+                    bright_changed = true;
+                }
+            }
+            if(!bright_changed || cfg->algorithm == ALGO_MONO) {
+                color_t* color = &cfg->color1;
+                if(cfg->algorithm == ALGO_CLOCK2) {
+                    if(colorcnt == 1) {
+                        colorcnt = 0;
+                        color = &cfg->color2;
+                    }
+                    else colorcnt++;
+                }
+                else colorcnt = 0;
+               
+                if (httpd_query_key_value(buf, "red", col, sizeof(col)) == ESP_OK) {
+                    color->red = (uint8_t)strtoul(col, NULL, 10);
+                }
+                if (httpd_query_key_value(buf, "green", col, sizeof(col)) == ESP_OK) {
+                    color->green = (uint8_t)strtoul(col, NULL, 10);
+                }
+                if (httpd_query_key_value(buf, "blue", col, sizeof(col)) == ESP_OK) {
+                    color->blue = (uint8_t)strtoul(col, NULL, 10);
+                }
             }
             if (httpd_query_key_value(buf, "speed", col, sizeof(col)) == ESP_OK) {
                 cfg->speed = strtoul(col, NULL, 10);

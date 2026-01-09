@@ -141,6 +141,7 @@ void Ledstrip::restoreConfig()
         }
         fclose(f);
     }
+    startled = cfg.led1;
 }
 
 void Ledstrip::dark()
@@ -179,14 +180,19 @@ string Ledstrip::to_json(led_config_t& cfg)
         to_json("bright", cfg.bright) + "," +
         to_json("nr_leds", cfg.num_leds) + "," +
         to_json("led1", cfg.led1) + "," +
-        "\"rotate\":" + (cfg.counterclock ? "\"left\"" : "\"right\"") + "," +
-        "\"name\":\"" + string(cfg.name) + "\"" +
+        to_json("rotate", (cfg.counterclock ? "left" : "right")) + "," +
+        to_json("name", cfg.name) +
         "}";
 }
 
 string Ledstrip::to_json(const string &tag, uint32_t nr)
 {
     return "\"" + tag + "\":" + to_string(nr);
+}
+
+string Ledstrip::to_json(const string &tag, const string& str)
+{
+    return "\"" + tag + "\":" + "\"" + str + "\"";
 }
 
 void Ledstrip::new_led_strip_pixels(uint32_t nr_leds)
@@ -413,6 +419,7 @@ void Ledstrip::clock2()
 
     uint32_t secleds = cfg.num_leds * ((tv_now.tv_sec % 60) * 1000 + tv_now.tv_usec / 1000) / 60000;
     led_strip_pixels[secleds] = cfg.color1;
+    startled = cfg.led1;
 }
 
 void Ledstrip::switchLeds()
@@ -436,7 +443,7 @@ void Ledstrip::switchLeds()
         for(int i=0; i<cfg.num_leds; i++)
         {
             int j = cfg.counterclock ? cfg.num_leds - 1 - i : i;
-            int n = in_range(i + startled + cfg.led1) * 3;
+            int n = in_range(i + startled) * 3;
             rmt_pixels[n + 0] = led_strip_pixels[j].green;
             rmt_pixels[n + 1] = led_strip_pixels[j].red;
             rmt_pixels[n + 2] = led_strip_pixels[j].blue;
@@ -476,6 +483,9 @@ void Ledstrip::loop()
                 break;
         }
 
+        if(!cfg.power)
+            period = -1; 
+
         TickType_t diff = xTaskGetTickCount() - lastWakeTime;
         if(pdMS_TO_TICKS(period) > diff)
             vTaskDelay(pdMS_TO_TICKS(period) - diff);
@@ -485,11 +495,20 @@ void Ledstrip::loop()
 void Ledstrip::switchNow()
 {
     cfg.power = true;
+    rmt->lock(PERIOD_SECOND);
     xTaskAbortDelay( mainTask );
+    rmt->unlock();
 }
 
 void Ledstrip::onoff()
 {
     cfg.power = !cfg.power;
+    // wait until current LED switching is finished
+    rmt->lock(PERIOD_SECOND);
     xTaskAbortDelay( mainTask );
+    rmt->unlock();
+
+    // if we just waited until rmt->transmit finished, switch off now
+    if(!cfg.power)
+        switchLeds();
 }
