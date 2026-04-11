@@ -9,6 +9,7 @@ Use your LED strip as a clock.
 - Select different modes for let yor LED strip from a website
 - SNTP get the current time from the internet  
 - Multiple LED strips
+- Fade in
  
 <img width="32" height="32" src="website/power-symbol-svgrepo-com.svg" alt="on/off"> ON/OFF  
 <img width="32" height="32" src="website/zahnrad.svg" alt="settings"> Set number of LEDs, starting point, direction, ...  

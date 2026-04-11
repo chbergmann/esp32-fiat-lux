@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <time.h>
 #include <sys/time.h>
+#include <cstdlib>
 
 #define EXAMPLE_LED_NUMBERS         CONFIG_LED_NUMBERS
 #define MAX_LEDS 10000
@@ -21,6 +22,25 @@
 #define STACK_SIZE      CONFIG_ESP_MAIN_TASK_STACK_SIZE
 
 static const char *TAG = "leds";
+
+void c_monocolor(Ledstrip* pL)      { pL->monocolor(); }
+void c_rainbow(Ledstrip* pL)        { pL->rainbow(); }
+void c_rainbow_clock(Ledstrip* pL)  { pL->rainbow_clock(); }
+void c_walk(Ledstrip* pL)           { pL->walk(); }
+void c_clock2(Ledstrip* pL)         { pL->clock2(); }
+void c_gradient(Ledstrip* pL)       { pL->gradient(); }
+void c_belt(Ledstrip* pL)           { pL->belt(); }
+
+const ledfunc_table_t Ledstrip::ledfunc_table[] = {
+        { ALGO_MONO,        "/mono",        c_monocolor },
+        { ALGO_RAINBOW,     "/rainbow",     c_rainbow },
+        { ALGO_RAINBOWCLK,  "/rainbowclk",  c_rainbow_clock },
+        { ALGO_WALK,        "/walk",        c_walk },
+        { ALGO_CLOCK2,      "/clock2",      c_clock2 },
+        { ALGO_GRADIENT,    "/gradient",    c_gradient },
+        { ALGO_BELT,        "/belt",        c_belt },
+        { ALGO_END,              "",             nullptr },
+};
 
 Ledstrip::Ledstrip()
 {
@@ -32,6 +52,8 @@ Ledstrip::Ledstrip()
     startled = 0;
     cfgfile_path[0] = 0;
     rmt = NULL;
+    fade_in = 0;
+    startTime = 0;
 }
 
 Ledstrip::~Ledstrip()
@@ -181,7 +203,8 @@ string Ledstrip::to_json(led_config_t& cfg)
         to_json("nr_leds", cfg.num_leds) + "," +
         to_json("led1", cfg.led1) + "," +
         to_json("rotate", (cfg.counterclock ? "left" : "right")) + "," +
-        to_json("name", cfg.name) +
+        to_json("name", cfg.name) + "," +
+        to_json("fadein", cfg.fadein_ms) +
         "}";
 }
 
@@ -269,6 +292,19 @@ void Ledstrip::add_gradient(color_t color)
     }
     cfg.gradients++;
     led_strip_pixels[cfg.num_leds * (cfg.gradients - 1) / cfg.gradients] = color;
+}
+
+void Ledstrip::belt()
+{
+    for(int i=1; i<cfg.num_leds/2; i++)
+    {
+        led_strip_pixels[i] = led_strip_pixels[i-1];
+        led_strip_pixels[cfg.num_leds - i] = led_strip_pixels[i];
+    }
+    led_strip_pixels[0] = cfg.color1;
+    led_strip_pixels[0].red *= rand() % 256;
+    led_strip_pixels[0].green *= rand() % 256;
+    led_strip_pixels[0].blue *= rand() % 256;
 }
 
 uint8_t Ledstrip::get_gradient(uint8_t color1, uint8_t color2, int a, int b, int i)
@@ -424,29 +460,43 @@ void Ledstrip::clock2()
 
 void Ledstrip::switchLeds()
 {
-    switch(cfg.algorithm)
+    for(int i=0; ledfunc_table[i].algo != ALGO_END; i++)
     {
-        case ALGO_MONO: monocolor(); break;
-        case ALGO_RAINBOW: rainbow(); break;
-        case ALGO_RAINBOWCLK: rainbow_clock(); break;
-        case ALGO_WALK: walk(); break;
-        case ALGO_CLOCK2: clock2(); break;
-        case ALGO_GRADIENT: gradient(); break;
+        if(cfg.algorithm == ledfunc_table[i].algo)
+        {
+            ledfunc_table[i].func(this);
+            break;
+        }
     }
+    transmit();
+}
 
+void Ledstrip::transmit()
+{
     if(!cfg.power)
     {
         memset(rmt_pixels, 0, led_strip_size());
     }
     else 
     {
+        uint32_t frac;
+        if(cfg.fadein_ms == 0 || fade_in == 0)
+        {
+            frac = 1;
+            fade_in = 1;
+        }
+        else if(fade_in < cfg.fadein_ms) 
+            frac = cfg.fadein_ms;
+        else
+            frac = fade_in;
+
         for(int i=0; i<cfg.num_leds; i++)
         {
             int j = cfg.counterclock ? cfg.num_leds - 1 - i : i;
             int n = in_range(i + startled) * 3;
-            rmt_pixels[n + 0] = led_strip_pixels[j].green;
-            rmt_pixels[n + 1] = led_strip_pixels[j].red;
-            rmt_pixels[n + 2] = led_strip_pixels[j].blue;
+            rmt_pixels[n + 0] = led_strip_pixels[j].green * fade_in / frac;
+            rmt_pixels[n + 1] = led_strip_pixels[j].red * fade_in / frac;
+            rmt_pixels[n + 2] = led_strip_pixels[j].blue * fade_in / frac;
         }
     }
 
@@ -458,12 +508,14 @@ void Ledstrip::switchLeds()
 
 void Ledstrip::loop()
 {
+    startTime = xTaskGetTickCount();
     mainTask = xTaskGetCurrentTaskHandle();
     ESP_LOGI(TAG, "started LED strip task at GPIO %d", gpio_nr);
     for (;;)
     {
         TickType_t period;
         TickType_t lastWakeTime = xTaskGetTickCount();
+        fade_in = pdTICKS_TO_MS(lastWakeTime - startTime);
         switchLeds();  
         
         switch(cfg.algorithm)
@@ -471,11 +523,12 @@ void Ledstrip::loop()
             case ALGO_RAINBOW:
             case ALGO_WALK:
             case ALGO_GRADIENT:
+            case ALGO_BELT:
                 period = (SPEED_MAX_VAL - cfg.speed) * (SPEED_MAX_VAL - cfg.speed);
                 break;
 
             case ALGO_CLOCK2:
-                period = PERIOD_SECOND / cfg.num_leds;
+                period = PERIOD_SECOND * 60 / cfg.num_leds;
                 break;
 
             default: 
@@ -487,8 +540,16 @@ void Ledstrip::loop()
             period = -1; 
 
         TickType_t diff = xTaskGetTickCount() - lastWakeTime;
-        if(pdMS_TO_TICKS(period) > diff)
-            vTaskDelay(pdMS_TO_TICKS(period) - diff);
+        while(pdMS_TO_TICKS(period) > diff)
+        {
+            if(fade_in < cfg.fadein_ms)
+                transmit();
+            else if(pdMS_TO_TICKS(period) > diff)
+                vTaskDelay(pdMS_TO_TICKS(period) - diff);
+
+            fade_in = pdTICKS_TO_MS(lastWakeTime - startTime);
+            diff = xTaskGetTickCount() - lastWakeTime;
+        }
     }
 }
 
@@ -507,6 +568,7 @@ void Ledstrip::onoff()
     rmt->lock(PERIOD_SECOND);
     xTaskAbortDelay( mainTask );
     rmt->unlock();
+    startTime = xTaskGetTickCount();
 
     // if we just waited until rmt->transmit finished, switch off now
     if(!cfg.power)

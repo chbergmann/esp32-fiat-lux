@@ -35,6 +35,7 @@
 #include "esp_timer.h"
 #include "file_server.h"
 #include "freertos/task.h"
+#include <memory>
 
 #define EXAMPLE_HTTP_QUERY_KEY_MAX_LEN  (64)
 
@@ -44,21 +45,23 @@
 
 static const char *TAG = "webserver";
 
-static const char* SITES[NUM_HANDLERS] = {
-    "/mono",
-    "/rainbowclk",
-    "/rainbow",
-    "/speed",
-    "/led",
-    "/values",
-    "/set",
-    "/walk",
-    "/clock2",
-    "/power",
-    "/gradient",
-    "/strips"
-};
 
+static esp_err_t c_led_get_handler(httpd_req_t *req);
+static esp_err_t c_led_set_handler(httpd_req_t *req);
+static esp_err_t c_led_val_handler(httpd_req_t *req);
+static esp_err_t c_led_power_handler(httpd_req_t *req);
+static esp_err_t c_led_strip_handler(httpd_req_t *req);
+
+const websvr_table_t Webserver::websvr_table[] = {
+    { URI_SPEED,  "/speed",     c_led_get_handler },
+    { URI_LED,    "/led",       c_led_get_handler },
+    { URI_VALUES, "/values",    c_led_val_handler },
+    { URI_SET,    "/set",       c_led_set_handler },
+    { URI_POWER,  "/power",     c_led_power_handler },
+    { URI_STRIPS, "/strips",    c_led_strip_handler },
+    { URI_END,    "",           nullptr },
+};
+    
 static const char* spiffs_path = "/data";
 
 Webserver::Webserver()
@@ -313,41 +316,31 @@ esp_err_t Webserver::led_get_handler(httpd_req_t *req)
         }
     }
 
-    if(string(req->uri).find(SITES[URI_MONO]) != string::npos)
-        cfg->algorithm = ALGO_MONO;
-
-    else if(string(req->uri).find(SITES[URI_GRADIENT]) != string::npos)
+    for(int i=0; Ledstrip::ledfunc_table[i].algo; i++)
     {
-        ledstrip[stripnr].dark();
-        cfg->algorithm = ALGO_GRADIENT;
-        ledstrip[stripnr].firstled(cfg->color1);
-    }
-
-    else if(string(req->uri).find(SITES[URI_RAINBOWCLK]) != string::npos)
-        cfg->algorithm = ALGO_RAINBOWCLK;
-
-    else if(string(req->uri).find(SITES[URI_RAINBOW]) != string::npos)
-        cfg->algorithm = ALGO_RAINBOW;
-
-    else if(string(req->uri).find(SITES[URI_WALK]) != string::npos)
-    {
-        ledstrip[stripnr].dark();
-        cfg->algorithm = ALGO_WALK;
-        ledstrip[stripnr].firstled(cfg->color1);
-    }
-
-    else if(string(req->uri).find(SITES[URI_CLOCK2]) != string::npos)
-        cfg->algorithm = ALGO_CLOCK2;
-
-    if(string(req->uri).find(SITES[URI_LED]) != string::npos)
-    { 
-        if(cfg->algorithm == ALGO_WALK)
+        if(string(req->uri).find(Ledstrip::ledfunc_table[i].uri) != string::npos)
         {
-            ledstrip[stripnr].firstled(cfg->color1);
+            cfg->algorithm = Ledstrip::ledfunc_table[i].algo;
+            if(cfg->algorithm == ALGO_GRADIENT || cfg->algorithm == ALGO_WALK)
+            {
+                ledstrip[stripnr].dark();
+                ledstrip[stripnr].firstled(cfg->color1);
+            }
         }
-        else if(cfg->algorithm == ALGO_GRADIENT)
-        {
-            ledstrip[stripnr].add_gradient(cfg->color1);
+    }
+
+    for(int i=0; websvr_table[i].type; i++)
+    {
+        if(string(req->uri).find(websvr_table[i].uri) != string::npos)
+        { 
+            if(websvr_table[i].type == URI_LED && cfg->algorithm == ALGO_WALK)
+            {
+                ledstrip[stripnr].firstled(cfg->color1);
+            }
+            else if(websvr_table[i].type == URI_LED && cfg->algorithm == ALGO_GRADIENT)
+            {
+                ledstrip[stripnr].add_gradient(cfg->color1);
+            }
         }
     }
 
@@ -396,6 +389,9 @@ esp_err_t Webserver::led_set_handler(httpd_req_t *req)
                     if(cfg->name[i] == '+')
                         cfg->name[i] = ' ';
                 }
+            }
+            if (httpd_query_key_value(buf, "fadein", col, sizeof(col)) == ESP_OK) {
+                cfg->fadein_ms = strtoul(col, NULL, 10);
             }
         }
     }
@@ -528,18 +524,8 @@ esp_err_t Webserver::init_leds()
 esp_err_t Webserver::start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers   = NUM_HANDLERS + 1; 
-
-    for(int i=0; i<NUM_HANDLERS; i++) {
-        handlers[i].method = HTTP_GET;
-        handlers[i].handler   = c_led_get_handler;
-        handlers[i].user_ctx  = this;
-        handlers[i].uri = SITES[i];
-    }
-    handlers[URI_VALUES].handler = c_led_val_handler;
-    handlers[URI_SET].handler    = c_led_set_handler;
-    handlers[URI_POWER].handler  = c_led_power_handler;
-    handlers[URI_STRIPS].handler = c_led_strip_handler;
+    config.max_uri_handlers   = 0; 
+    shared_ptr<httpd_uri_t> handler;
 
 #if CONFIG_IDF_TARGET_LINUX
     // Setting port as 8001 when building for Linux. Port 80 can be used only by a privileged user in linux.
@@ -555,13 +541,35 @@ esp_err_t Webserver::start(void)
      * target URIs which match the wildcard scheme */
     config.uri_match_fn = httpd_uri_match_wildcard;
 
+    for(int i=0; Ledstrip::ledfunc_table[i].algo; i++)
+        config.max_uri_handlers++;
+
+    for(int i=0; websvr_table[i].type; i++)
+        config.max_uri_handlers++;
+        
     // Start the httpd server
     ESP_LOGI(TAG, "Starting server on port: '%d'", config.server_port);
     if (httpd_start(&server, &config) == ESP_OK) {
         // Set URI handlers
         ESP_LOGI(TAG, "Registering URI handlers");
-        for(int i=0; i<NUM_HANDLERS; i++) { 
-            httpd_register_uri_handler(server, &handlers[i]);
+        
+        for(int i=0; Ledstrip::ledfunc_table[i].algo; i++)
+        {
+            handler = make_shared<httpd_uri_t>();
+            handler->method = HTTP_GET;
+            handler->handler   = c_led_get_handler;
+            handler->user_ctx  = this;
+            handler->uri = Ledstrip::ledfunc_table[i].uri.c_str();
+            httpd_register_uri_handler(server, handler.get());
+        }
+        for(int i=0; websvr_table[i].type; i++)
+        {
+            handler = make_shared<httpd_uri_t>();
+            handler->method = HTTP_GET;
+            handler->user_ctx  = this;
+            handler->uri = websvr_table[i].uri.c_str();
+            handler->handler = websvr_table[i].handler;
+            httpd_register_uri_handler(server, handler.get());
         }
         ESP_ERROR_CHECK(start_file_server(server, spiffs_path));
 #if CONFIG_EXAMPLE_ENABLE_SSE_HANDLER

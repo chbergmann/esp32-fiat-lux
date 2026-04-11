@@ -8,27 +8,27 @@ using namespace std;
 
 #define NR_LEDSTRIPS    CONFIG_NR_LEDSTRIPS
 
-enum {
-    URI_MONO = 0,
-    URI_RAINBOWCLK,
-    URI_RAINBOW,
+typedef enum {
+    URI_END = 0,
     URI_SPEED,
     URI_LED,
     URI_VALUES,
     URI_SET,
-    URI_WALK,
-    URI_CLOCK2,
     URI_POWER,
-    URI_GRADIENT,
-    URI_STRIPS,
-    NUM_HANDLERS
-};
+    URI_STRIPS
+} websvr_uri_t;
+
+typedef struct {
+    websvr_uri_t type;
+    string uri;
+    esp_err_t (*handler)(httpd_req_t *req);
+} websvr_table_t;
 
 
 class Webserver {
     httpd_handle_t server;
     Ledstrip ledstrip[NR_LEDSTRIPS];
-    httpd_uri_t handlers[NUM_HANDLERS];
+    static const websvr_table_t websvr_table[];
     RmtTxDriver rmt;
 
     uint32_t loop_delay;

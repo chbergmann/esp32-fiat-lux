@@ -10,12 +10,14 @@ async function loadSettings()
 
         const data = await response.json();
 
-        var led1 = document.getElementById("stripname");
-        led1.value = data.name;
+        var strip = document.getElementById("stripname");
+        strip.value = data.name;
         var leds = document.getElementById("nr_leds");
         leds.value = data.nr_leds;
         var led1 = document.getElementById("led1");
         led1.value = data.led1;
+        var fade = document.getElementById("fadein");
+        fade.value = data.fadein;
         setRotation(data.rotate);
 
         // Use them however you want (no page refresh)

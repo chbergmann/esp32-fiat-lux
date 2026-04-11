@@ -17,5 +17,6 @@
     "--compile-commands-dir=/home/christi/src/esp32-fiat-lux/build"
   ],
   "idf.flashType": "UART",
-  "idf.monitorPort": "/dev/ttyACM0"
+  "idf.monitorPort": "/dev/ttyACM0",
+  "idf.currentSetup": "/home/christi/esp/v6.0/esp-idf"
 }

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+
+<svg
+   version="1.0"
+   id="Layer_1"
+   width="800px"
+   height="800px"
+   viewBox="0 0 64 64"
+   enable-background="new 0 0 64 64"
+   xml:space="preserve"
+   sodipodi:docname="belt.svg"
+   inkscape:version="1.4.2 (ebf0e940d0, 2025-05-08)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"><defs
+   id="defs3"><linearGradient
+     id="linearGradient1"
+     inkscape:collect="always"><stop
+       style="stop-color:#ff0000;stop-opacity:1;"
+       offset="0"
+       id="stop1" /><stop
+       style="stop-color:#303000;stop-opacity:1;"
+       offset="0.25"
+       id="stop6" /><stop
+       style="stop-color:#ffff00;stop-opacity:1;"
+       offset="0.5"
+       id="stop3" /><stop
+       style="stop-color:#890000;stop-opacity:1;"
+       offset="0.75"
+       id="stop4" /><stop
+       style="stop-color:#be9b00;stop-opacity:1;"
+       offset="0.875"
+       id="stop5" /><stop
+       style="stop-color:#d70000;stop-opacity:1;"
+       offset="1"
+       id="stop2" /></linearGradient><linearGradient
+     inkscape:collect="always"
+     xlink:href="#linearGradient1"
+     id="linearGradient2"
+     x1="0.050519943"
+     y1="32.033441"
+     x2="63.949478"
+     y2="32.033441"
+     gradientUnits="userSpaceOnUse" /></defs><sodipodi:namedview
+   id="namedview3"
+   pagecolor="#ffffff"
+   bordercolor="#000000"
+   borderopacity="0.25"
+   inkscape:showpageshadow="2"
+   inkscape:pageopacity="0.0"
+   inkscape:pagecheckerboard="0"
+   inkscape:deskcolor="#d1d1d1"
+   inkscape:zoom="1.19625"
+   inkscape:cx="400"
+   inkscape:cy="400"
+   inkscape:window-width="2048"
+   inkscape:window-height="1208"
+   inkscape:window-x="0"
+   inkscape:window-y="0"
+   inkscape:window-maximized="1"
+   inkscape:current-layer="Layer_1" />
+<rect
+   style="fill:none;stroke:url(#linearGradient2);stroke-width:9.40307;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none"
+   id="rect4"
+   width="54.495888"
+   height="54.42902"
+   x="4.7520552"
+   y="4.8189311"
+   rx="5.1199999"
+   ry="5.1199999" />
+</svg>

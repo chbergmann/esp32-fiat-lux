@@ -6,13 +6,23 @@
 using namespace std;
 
 typedef enum {
+    ALGO_END = 0,
     ALGO_MONO,
     ALGO_GRADIENT,
     ALGO_RAINBOW,
     ALGO_RAINBOWCLK,
     ALGO_WALK,
     ALGO_CLOCK2,
+    ALGO_BELT,
 } ledstrip_algo_t;
+
+class Ledstrip;
+
+typedef struct {
+    ledstrip_algo_t algo;
+    string uri;
+    void (*func)(Ledstrip*);
+} ledfunc_table_t;
 
 typedef struct {
     uint8_t green;
@@ -34,6 +44,7 @@ typedef struct
     uint32_t gradients;
     bool power;
     char name[16];
+    uint32_t fadein_ms;
 } led_config_t;
 
 class Ledstrip {
@@ -45,15 +56,19 @@ class Ledstrip {
     int lastSec;
     RmtTxDriver* rmt;
     gpio_num_t gpio_nr;
+    uint32_t fade_in;
+    TickType_t startTime;
 
     void new_led_strip_pixels(uint32_t nr_leds);
     size_t led_strip_size() { return cfg.num_leds * 3; }
     void switchLeds();
     static uint8_t get_gradient(uint8_t color1, uint8_t color2, int a, int b, int i);
     int in_range(int lednr);
+    void transmit();
 
 public:
     led_config_t cfg;
+    static const ledfunc_table_t ledfunc_table[];
 
     Ledstrip();
     ~Ledstrip();
@@ -75,6 +90,7 @@ public:
     void clock2();
     void gradient();
     void add_gradient(color_t color);
+    void belt();
 
     string to_json(led_config_t& cfg);
     static string to_json(const string& tag, uint32_t nr);
