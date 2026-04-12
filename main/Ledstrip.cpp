@@ -58,6 +58,7 @@ Ledstrip::Ledstrip()
 
 Ledstrip::~Ledstrip()
 {
+    mainTask = 0;
     new_led_strip_pixels(0);
 }
 
@@ -148,13 +149,16 @@ void Ledstrip::restoreConfig()
         ESP_LOGW(TAG, "Failed to open %s. Using default config", cfgfile_path);
         new_led_strip_pixels(cfg.num_leds);
     }
-    else {
-        if(fread(&cfg, 1, sizeof(cfg), f) != sizeof(cfg))
+    else 
+    {
+        led_config_t fcfg;
+        if(fread(&fcfg, 1, sizeof(led_config_t), f) != sizeof(led_config_t))
         {
             ESP_LOGE(TAG, "Failed to read %s. Using default config", cfgfile_path);
         }
-        if(cfg.num_leds < MAX_LEDS)
+        if(fcfg.num_leds < MAX_LEDS)
         {
+            memcpy(&cfg, &fcfg, sizeof(led_config_t));
             new_led_strip_pixels(cfg.num_leds);
             if(fread(led_strip_pixels, 1, led_strip_size(), f) != led_strip_size())
             {
@@ -232,6 +236,7 @@ void Ledstrip::new_led_strip_pixels(uint32_t nr_leds)
         rmt_pixels = new uint8_t[nr_leds*3];
     }
     cfg.num_leds = nr_leds;
+    ESP_LOGI(TAG, "Nr. LEDs: %d", cfg.num_leds);
 }
 
 void vLedstripTask( void * pvParameters )
@@ -460,6 +465,9 @@ void Ledstrip::clock2()
 
 void Ledstrip::switchLeds()
 {
+    if(cfg.num_leds == 0)
+        return;
+
     for(int i=0; ledfunc_table[i].algo != ALGO_END; i++)
     {
         if(cfg.algorithm == ledfunc_table[i].algo)
@@ -473,6 +481,9 @@ void Ledstrip::switchLeds()
 
 void Ledstrip::transmit()
 {
+    if(cfg.num_leds == 0)
+        return;
+
     if(!cfg.power)
     {
         memset(rmt_pixels, 0, led_strip_size());
@@ -511,7 +522,7 @@ void Ledstrip::loop()
     startTime = xTaskGetTickCount();
     mainTask = xTaskGetCurrentTaskHandle();
     ESP_LOGI(TAG, "started LED strip task at GPIO %d", gpio_nr);
-    for (;;)
+    while(mainTask)
     {
         TickType_t period;
         TickType_t lastWakeTime = xTaskGetTickCount();

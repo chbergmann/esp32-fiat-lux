@@ -35,7 +35,6 @@
 #include "esp_timer.h"
 #include "file_server.h"
 #include "freertos/task.h"
-#include <memory>
 
 #define EXAMPLE_HTTP_QUERY_KEY_MAX_LEN  (64)
 
@@ -524,8 +523,11 @@ esp_err_t Webserver::init_leds()
 esp_err_t Webserver::start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers   = 0; 
-    shared_ptr<httpd_uri_t> handler;
+    config.max_uri_handlers = 1; 
+    httpd_uri_t handler;
+
+    handler.method = HTTP_GET;
+    handler.user_ctx  = this;
 
 #if CONFIG_IDF_TARGET_LINUX
     // Setting port as 8001 when building for Linux. Port 80 can be used only by a privileged user in linux.
@@ -551,25 +553,19 @@ esp_err_t Webserver::start(void)
     ESP_LOGI(TAG, "Starting server on port: '%d'", config.server_port);
     if (httpd_start(&server, &config) == ESP_OK) {
         // Set URI handlers
-        ESP_LOGI(TAG, "Registering URI handlers");
+        ESP_LOGI(TAG, "Registering %d URI handlers", config.max_uri_handlers);
         
         for(int i=0; Ledstrip::ledfunc_table[i].algo; i++)
         {
-            handler = make_shared<httpd_uri_t>();
-            handler->method = HTTP_GET;
-            handler->handler   = c_led_get_handler;
-            handler->user_ctx  = this;
-            handler->uri = Ledstrip::ledfunc_table[i].uri.c_str();
-            httpd_register_uri_handler(server, handler.get());
+            handler.handler   = c_led_get_handler;
+            handler.uri = Ledstrip::ledfunc_table[i].uri.c_str();
+            httpd_register_uri_handler(server, &handler);
         }
         for(int i=0; websvr_table[i].type; i++)
         {
-            handler = make_shared<httpd_uri_t>();
-            handler->method = HTTP_GET;
-            handler->user_ctx  = this;
-            handler->uri = websvr_table[i].uri.c_str();
-            handler->handler = websvr_table[i].handler;
-            httpd_register_uri_handler(server, handler.get());
+            handler.uri = websvr_table[i].uri.c_str();
+            handler.handler = websvr_table[i].handler;
+            httpd_register_uri_handler(server, &handler);
         }
         ESP_ERROR_CHECK(start_file_server(server, spiffs_path));
 #if CONFIG_EXAMPLE_ENABLE_SSE_HANDLER
