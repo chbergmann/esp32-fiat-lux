@@ -65,6 +65,7 @@ class Ledstrip {
     static uint8_t get_gradient(uint8_t color1, uint8_t color2, int a, int b, int i);
     int in_range(int lednr);
     void transmit();
+    uint8_t colorchange1(uint8_t ledcol);
 
 public:
     led_config_t cfg;

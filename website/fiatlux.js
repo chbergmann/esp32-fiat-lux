@@ -127,6 +127,13 @@ function walking()
     trigger_restapi(url);
 }
 
+function belt()
+{
+    var slider = document.getElementById("speedRange");
+    const url = `/belt?red=${mycolor.red}&green=${mycolor.green}&blue=${mycolor.blue}&speed=${slider.value}`;
+    trigger_restapi(url);
+}
+
 function speedSlide() 
 {
     var slider = document.getElementById("speedRange");

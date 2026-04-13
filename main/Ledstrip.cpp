@@ -299,17 +299,22 @@ void Ledstrip::add_gradient(color_t color)
     led_strip_pixels[cfg.num_leds * (cfg.gradients - 1) / cfg.gradients] = color;
 }
 
+uint8_t Ledstrip::colorchange1(uint8_t ledcol)
+{
+    return ledcol * (rand() % 256) / 256;
+}
+
 void Ledstrip::belt()
 {
-    for(int i=1; i<cfg.num_leds/2; i++)
+    for(int i=0; i<(cfg.num_leds+1)/2 + 1; i++)
     {
-        led_strip_pixels[i] = led_strip_pixels[i-1];
+        led_strip_pixels[i] = led_strip_pixels[i+1];
         led_strip_pixels[cfg.num_leds - i] = led_strip_pixels[i];
     }
-    led_strip_pixels[0] = cfg.color1;
-    led_strip_pixels[0].red *= rand() % 256;
-    led_strip_pixels[0].green *= rand() % 256;
-    led_strip_pixels[0].blue *= rand() % 256;
+    int m = cfg.num_leds/2;
+    led_strip_pixels[m].red = colorchange1(cfg.color1.red);
+    led_strip_pixels[m].green = colorchange1(cfg.color1.green);
+    led_strip_pixels[m].blue = colorchange1(cfg.color1.blue);
 }
 
 uint8_t Ledstrip::get_gradient(uint8_t color1, uint8_t color2, int a, int b, int i)
@@ -546,9 +551,6 @@ void Ledstrip::loop()
                 period = PERIOD_SECOND; 
                 break;
         }
-
-        if(!cfg.power)
-            period = -1; 
 
         TickType_t diff = xTaskGetTickCount() - lastWakeTime;
         while(pdMS_TO_TICKS(period) > diff)
