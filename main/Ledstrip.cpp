@@ -30,6 +30,7 @@ void c_walk(Ledstrip* pL)           { pL->walk(); }
 void c_clock2(Ledstrip* pL)         { pL->clock2(); }
 void c_gradient(Ledstrip* pL)       { pL->gradient(); }
 void c_belt(Ledstrip* pL)           { pL->belt(); }
+void c_fire(Ledstrip* pL)           { pL->fire(); }
 
 const ledfunc_table_t Ledstrip::ledfunc_table[] = {
         { ALGO_MONO,        "/mono",        c_monocolor },
@@ -39,6 +40,7 @@ const ledfunc_table_t Ledstrip::ledfunc_table[] = {
         { ALGO_CLOCK2,      "/clock2",      c_clock2 },
         { ALGO_GRADIENT,    "/gradient",    c_gradient },
         { ALGO_BELT,        "/belt",        c_belt },
+        { ALGO_FIRE,        "/fire",        c_fire },
         { ALGO_END,              "",             nullptr },
 };
 
@@ -261,7 +263,7 @@ esp_err_t Ledstrip::init(const char *spiffs_path, RmtTxDriver* rmt_inst, gpio_nu
                     "LedstripTask",          /* Text name for the task. */
                     STACK_SIZE,      /* Stack size in words, not bytes. */
                     this,    /* Parameter passed into the task. */
-                    tskIDLE_PRIORITY,/* Priority at which the task is created. */
+                    1,      /* Priority at which the task is created. */
                     &xHandle );      /* Used to pass out the created task's handle. */
 
     if( xReturned != pdPASS )
@@ -315,6 +317,17 @@ void Ledstrip::belt()
     led_strip_pixels[m].red = colorchange1(cfg.color1.red);
     led_strip_pixels[m].green = colorchange1(cfg.color1.green);
     led_strip_pixels[m].blue = colorchange1(cfg.color1.blue);
+    startled = cfg.led1;
+}
+
+void Ledstrip::fire()
+{
+    for(int i=0; i<cfg.num_leds; i++)
+    {
+        led_strip_pixels[i].red = 127 + rand() % 128;
+        led_strip_pixels[i].green = 33 + rand() % 66;
+        led_strip_pixels[i].blue = 0;
+    }
 }
 
 uint8_t Ledstrip::get_gradient(uint8_t color1, uint8_t color2, int a, int b, int i)
@@ -540,6 +553,7 @@ void Ledstrip::loop()
             case ALGO_WALK:
             case ALGO_GRADIENT:
             case ALGO_BELT:
+            case ALGO_FIRE:
                 period = (SPEED_MAX_VAL - cfg.speed) * (SPEED_MAX_VAL - cfg.speed);
                 break;
 

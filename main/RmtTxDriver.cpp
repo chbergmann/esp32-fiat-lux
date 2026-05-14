@@ -78,5 +78,6 @@ esp_err_t RmtTxDriver::transmit(gpio_num_t gpionr, uint8_t *pixels, size_t nr_pi
 
     esp_err_t ret = transmit(pixels, nr_pixels, timeout_ms);
     unlock();
+    taskYIELD();
     return ret;
 }

@@ -44,6 +44,9 @@ public:
     esp_err_t init_leds();
     esp_err_t start();
     esp_err_t stop();
+    static size_t urlDecode(const char* str, char* result, size_t resultlen);
+    static bool query_key_nr(httpd_req_t *req, const char *key, unsigned long *nr);
+    static bool query_key_str(httpd_req_t *req, const char *key, char *str, size_t strlen);
     esp_err_t led_get_handler(httpd_req_t *req);
     esp_err_t led_set_handler(httpd_req_t *req);
     esp_err_t led_val_handler(httpd_req_t *req);

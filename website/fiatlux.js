@@ -42,7 +42,7 @@ async function onLoad()
                 if(i == data1.selected_strip) {
                     html += " active";
                 }
-                html += `' onclick='stripselect(${i})'>${data1.name[i]}</button>`;
+                html += `' onclick='stripselect(${i})'><div class='btntxt'>${data1.name[i]}</div></button>`;
             }
             stripselect.innerHTML = html;
         }
@@ -131,6 +131,13 @@ function belt()
 {
     var slider = document.getElementById("speedRange");
     const url = `/belt?red=${mycolor.red}&green=${mycolor.green}&blue=${mycolor.blue}&speed=${slider.value}`;
+    trigger_restapi(url);
+}
+
+function fire()
+{
+    var slider = document.getElementById("speedRange");
+    const url = `/fire?red=${mycolor.red}&green=${mycolor.green}&blue=${mycolor.blue}&speed=${slider.value}`;
     trigger_restapi(url);
 }
 

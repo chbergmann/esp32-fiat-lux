@@ -26,6 +26,10 @@
 #if !CONFIG_IDF_TARGET_LINUX
 #include <esp_wifi.h>
 #include <esp_system.h>
+#include <iostream>
+#include <cctype>
+#include <sstream>
+#include <iomanip>
 #include "nvs_flash.h"
 #include "esp_eth.h"
 #endif  // !CONFIG_IDF_TARGET_LINUX
@@ -242,22 +246,12 @@ static esp_err_t c_led_strip_handler(httpd_req_t *req)
 
 bool Webserver::parse_stripnr(httpd_req_t *req)
 {
-    size_t buf_len;
     bool changed = false;
-    buf_len = httpd_req_get_url_query_len(req) + 1;
-    if (buf_len > 1) {
-        char buf[buf_len];
-        ESP_RETURN_ON_FALSE(buf, ESP_ERR_NO_MEM, TAG, "buffer alloc failed");
-        if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
-            ESP_LOGI(TAG, "Found URL query => %s", buf);
-            char col[EXAMPLE_HTTP_QUERY_KEY_MAX_LEN] = {0};
-            if (httpd_query_key_value(buf, "strip", col, sizeof(col)) == ESP_OK) {
-                uint32_t nr = strtoul(col, NULL, 10);
-                if(nr < NR_LEDSTRIPS && stripnr != nr) {
-                    stripnr = nr;
-                    changed = true;
-                }
-            }
+    uint32_t nr = 0;
+    if (query_key_nr(req, "strip", &nr)) {
+        if(nr < NR_LEDSTRIPS && stripnr != nr) {
+            stripnr = nr;
+            changed = true;
         }
     }
     return changed;
@@ -266,54 +260,41 @@ bool Webserver::parse_stripnr(httpd_req_t *req)
 /* An HTTP GET handler */
 esp_err_t Webserver::led_get_handler(httpd_req_t *req)
 {
-    size_t buf_len;
-
     bool strip_changed = parse_stripnr(req);
     led_config_t* cfg = &ledstrip[stripnr].cfg;
 
-    /* Read URL query string length and allocate memory for length + 1,
-     * extra byte for null termination */
-    buf_len = httpd_req_get_url_query_len(req) + 1;
-    if (buf_len > 1) {
-        char buf[buf_len];
-        ESP_RETURN_ON_FALSE(buf, ESP_ERR_NO_MEM, TAG, "buffer alloc failed");
-        if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
-            bool bright_changed = false;
-            char col[EXAMPLE_HTTP_QUERY_KEY_MAX_LEN] = {0};
-            /* Get value of expected key from query string */
-            if (httpd_query_key_value(buf, "bright", col, sizeof(col)) == ESP_OK) {
-                uint32_t bright = strtoul(col, NULL, 10);
-                if(bright != cfg->bright) {
-                    cfg->bright = bright;
-                    bright_changed = true;
-                }
-            }
-            if(!bright_changed || cfg->algorithm == ALGO_MONO) {
-                color_t* color = &cfg->color1;
-                if(cfg->algorithm == ALGO_CLOCK2) {
-                    if(colorcnt == 1) {
-                        colorcnt = 0;
-                        color = &cfg->color2;
-                    }
-                    else colorcnt++;
-                }
-                else colorcnt = 0;
-               
-                if (httpd_query_key_value(buf, "red", col, sizeof(col)) == ESP_OK) {
-                    color->red = (uint8_t)strtoul(col, NULL, 10);
-                }
-                if (httpd_query_key_value(buf, "green", col, sizeof(col)) == ESP_OK) {
-                    color->green = (uint8_t)strtoul(col, NULL, 10);
-                }
-                if (httpd_query_key_value(buf, "blue", col, sizeof(col)) == ESP_OK) {
-                    color->blue = (uint8_t)strtoul(col, NULL, 10);
-                }
-            }
-            if (httpd_query_key_value(buf, "speed", col, sizeof(col)) == ESP_OK) {
-                cfg->speed = strtoul(col, NULL, 10);
-            }
+    bool bright_changed = false;
+    /* Get value of expected key from query string */
+    uint32_t bright = 0;
+    if (query_key_nr(req, "bright", &bright)) {
+        if(bright != cfg->bright) {
+            cfg->bright = bright;
+            bright_changed = true;
         }
     }
+    if(!bright_changed || cfg->algorithm == ALGO_MONO) {
+        color_t* color = &cfg->color1;
+        if(cfg->algorithm == ALGO_CLOCK2) {
+            if(colorcnt == 1) {
+                colorcnt = 0;
+                color = &cfg->color2;
+            }
+            else colorcnt++;
+        }
+        else colorcnt = 0;
+        
+        uint32_t val = 0;
+        if (query_key_nr(req, "red", &val)) {
+            color->red = (uint8_t)val;
+        }
+        if (query_key_nr(req, "green", &val)) {
+            color->green = (uint8_t)val;
+        }
+        if (query_key_nr(req, "blue", &val)) {
+            color->blue = (uint8_t)val;
+        }
+    }
+    query_key_nr(req, "speed", &cfg->speed);
 
     for(int i=0; Ledstrip::ledfunc_table[i].algo; i++)
     {
@@ -360,40 +341,20 @@ esp_err_t Webserver::led_get_handler(httpd_req_t *req)
 /* An HTTP GET handler */
 esp_err_t Webserver::led_set_handler(httpd_req_t *req)
 {
-    size_t buf_len;
-
     parse_stripnr(req);
     led_config_t* cfg = &ledstrip[stripnr].cfg;
 
-    /* Read URL query string length and allocate memory for length + 1,
-     * extra byte for null termination */
-    buf_len = httpd_req_get_url_query_len(req) + 1;
-    if (buf_len > 1) {
-        char buf[buf_len];
-        ESP_RETURN_ON_FALSE(buf, ESP_ERR_NO_MEM, TAG, "buffer alloc failed");
-        if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
-            char col[EXAMPLE_HTTP_QUERY_KEY_MAX_LEN] = {0};
-            /* Get value of expected key from query string */
-            if (httpd_query_key_value(buf, "nr_leds", col, sizeof(col)) == ESP_OK) {
-                cfg->num_leds = strtoul(col, NULL, 10);
-            }
-            if (httpd_query_key_value(buf, "rotate", col, sizeof(col)) == ESP_OK) {
-                cfg->counterclock = string(col) == "left";
-            }
-            if (httpd_query_key_value(buf, "led1", col, sizeof(col)) == ESP_OK) {
-                cfg->led1 = strtoul(col, NULL, 10);
-            }
-            if (httpd_query_key_value(buf, "stripname", cfg->name, sizeof(cfg->name)) == ESP_OK) {
-                for(int i=0; i<sizeof(cfg->name); i++) {
-                    if(cfg->name[i] == '+')
-                        cfg->name[i] = ' ';
-                }
-            }
-            if (httpd_query_key_value(buf, "fadein", col, sizeof(col)) == ESP_OK) {
-                cfg->fadein_ms = strtoul(col, NULL, 10);
-            }
-        }
+    /* Get value of expected key from query string */
+    query_key_nr(req, "nr_leds", &cfg->num_leds);
+    query_key_nr(req, "led1", &cfg->led1);
+    query_key_nr(req, "fadein", &cfg->fadein_ms);
+
+    char side[10] = { 0 };
+    query_key_str(req, "rotate", side, sizeof(side));
+    if (query_key_str(req, "rotate", side, sizeof(side))) {
+        cfg->counterclock = string(side) == "left";
     }
+    query_key_str(req, "stripname", cfg->name, sizeof(cfg->name));
 
     ledstrip[stripnr].saveConfig();
 
@@ -408,7 +369,7 @@ esp_err_t Webserver::led_val_handler(httpd_req_t *req)
     parse_stripnr(req);
     string json = ledstrip[stripnr].to_json(ledstrip[stripnr].cfg);
     
-    httpd_resp_set_type(req, "application/json");
+    httpd_resp_set_type(req, "application/json;charset=utf-8");
     httpd_resp_send(req, json.c_str(), json.length());
     return ESP_OK;
 }
@@ -438,7 +399,7 @@ esp_err_t Webserver::led_strip_handler(httpd_req_t *req)
         json += "\"" + string(ledstrip[i].cfg.name) + "\"";
     }
     json += "]}";
-    httpd_resp_set_type(req, "application/json");
+    httpd_resp_set_type(req, "application/json;charset=utf-8");
     httpd_resp_send(req, json.c_str(), json.length());
     return esp_err_t();
 }
@@ -590,4 +551,77 @@ esp_err_t Webserver::stop()
     return err;
 }
 
+// Funktion zur Dekodierung von URL-kodiertem Text (char*)
+size_t Webserver::urlDecode(const char* str, char* result, size_t resultlen) 
+{
+    if (str == NULL) {
+        return 0;
+    }
+
+    // Berechne die maximale Länge des dekodierten Strings
+    size_t len = strlen(str);
+    if (result == NULL) {
+        return 0; // Speicherallokation fehlgeschlagen
+    }
+
+    size_t resultIndex = 0;
+    for (size_t i = 0; i < len; ++i) {
+        if (str[i] == '%') {
+            // Prüfe, ob genug Zeichen für eine hexadezimale Kodierung vorhanden sind
+            if (i + 2 >= len) {
+                // Ungültiges Format, breche ab oder behandle als Fehler
+                result[resultIndex++] = str[i];
+                continue;
+            }
+
+            // Extrahiere die hexadezimalen Zeichen
+            char hexStr[] = { str[i + 1], str[i + 2], '\0' };
+            int decodedChar;
+            sscanf(hexStr, "%2x", &decodedChar);
+
+            // Füge das dekodierte Zeichen zum Ergebnis hinzu
+            result[resultIndex++] = (char)decodedChar;
+            i += 2; // Überspringe die nächsten beiden Zeichen
+        } else if (str[i] == '+') {
+            // '+' wird in URL-kodierten Texten als Leerzeichen interpretiert
+            result[resultIndex++] = ' ';
+        } else {
+            // Normale Zeichen werden unverändert übernommen
+            result[resultIndex++] = str[i];
+        }
+        if(resultIndex >= resultlen - 1)
+            break;
+    }
+
+    result[resultIndex] = '\0'; // Null-Terminator setzen
+    return resultIndex;
+}
+
+bool Webserver::query_key_nr(httpd_req_t *req, const char *key, unsigned long *nr)
+{
+    char val[16];
+    if(!query_key_str(req, key, val, sizeof(val)))
+        return false;
+
+    *nr = strtoul(val, NULL, 10);
+    return true;
+}
+
+bool Webserver::query_key_str(httpd_req_t *req, const char *key, char *str, size_t strlen)
+{
+    size_t buf_len = httpd_req_get_url_query_len(req);
+    if (buf_len <= 0) 
+        return false;
+    
+    char buf[buf_len+1];
+    char val[buf_len+1] = { 0 };
+    if (httpd_req_get_url_query_str(req, buf, sizeof(buf)) != ESP_OK) 
+        return false;
+
+    if (httpd_query_key_value(buf, key, val, sizeof(val)) != ESP_OK) 
+        return false;
+
+    urlDecode(val, str, strlen);
+    return true;
+}
 #endif // !CONFIG_IDF_TARGET_LINUX

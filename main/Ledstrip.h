@@ -14,6 +14,7 @@ typedef enum {
     ALGO_WALK,
     ALGO_CLOCK2,
     ALGO_BELT,
+    ALGO_FIRE,
 } ledstrip_algo_t;
 
 class Ledstrip;
@@ -92,6 +93,7 @@ public:
     void gradient();
     void add_gradient(color_t color);
     void belt();
+    void fire();
 
     string to_json(led_config_t& cfg);
     static string to_json(const string& tag, uint32_t nr);
