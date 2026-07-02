@@ -39,6 +39,7 @@
 #include "esp_timer.h"
 #include "file_server.h"
 #include "freertos/task.h"
+#include "wifi.h"
 
 #define EXAMPLE_HTTP_QUERY_KEY_MAX_LEN  (64)
 
@@ -54,6 +55,7 @@ static esp_err_t c_led_set_handler(httpd_req_t *req);
 static esp_err_t c_led_val_handler(httpd_req_t *req);
 static esp_err_t c_led_power_handler(httpd_req_t *req);
 static esp_err_t c_led_strip_handler(httpd_req_t *req);
+static esp_err_t c_set_wifi_handler(httpd_req_t *req);
 
 const websvr_table_t Webserver::websvr_table[] = {
     { URI_SPEED,  "/speed",     c_led_get_handler },
@@ -62,10 +64,10 @@ const websvr_table_t Webserver::websvr_table[] = {
     { URI_SET,    "/set",       c_led_set_handler },
     { URI_POWER,  "/power",     c_led_power_handler },
     { URI_STRIPS, "/strips",    c_led_strip_handler },
+    { URI_WIFI,   "/setwifi",   c_set_wifi_handler },
     { URI_END,    "",           nullptr },
 };
     
-static const char* spiffs_path = "/data";
 
 Webserver::Webserver()
 {
@@ -244,6 +246,13 @@ static esp_err_t c_led_strip_handler(httpd_req_t *req)
     return webserver->led_strip_handler(req);
 }
 
+static esp_err_t c_set_wifi_handler(httpd_req_t *req)
+{
+    ESP_LOGI(TAG, "GET %s", req->uri);
+    Webserver* webserver = (Webserver*)req->user_ctx;
+    return webserver->set_wifi_handler(req);
+}
+
 bool Webserver::parse_stripnr(httpd_req_t *req)
 {
     bool changed = false;
@@ -363,6 +372,20 @@ esp_err_t Webserver::led_set_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+esp_err_t Webserver::set_wifi_handler(httpd_req_t *req)
+{
+    uint8_t ssid[32];
+    uint8_t pwd[64];
+    if(query_key_str(req, "ssid", (char*)ssid, sizeof(ssid)) &&
+       query_key_str(req, "password", (char*)pwd, sizeof(pwd))) {
+            
+        wifi_write_config(ssid, pwd);
+    }
+    else {
+        ESP_LOGE(TAG, "set_wifi_handler did not get ssid and password");
+    }
+    return ESP_OK;
+}
 
 esp_err_t Webserver::led_val_handler(httpd_req_t *req)
 {
@@ -459,10 +482,9 @@ static const httpd_uri_t sse = {
 };
 #endif // CONFIG_EXAMPLE_ENABLE_SSE_HANDLER
 
-esp_err_t Webserver::init_leds()
+esp_err_t Webserver::init_leds(const char *spiffs_path)
 {
     esp_err_t ret = ESP_OK;
-    ESP_ERROR_CHECK(mount_storage(spiffs_path));
 
     rmt.init((gpio_num_t)CONFIG_LED_STRIP1_GPIO_NUM);
     for(int i=0; i<NR_LEDSTRIPS; i++)
@@ -481,7 +503,7 @@ esp_err_t Webserver::init_leds()
     return ret;
 }
 
-esp_err_t Webserver::start(void)
+esp_err_t Webserver::start(const char *spiffs_path)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.max_uri_handlers = 1; 

@@ -401,7 +401,7 @@ void Ledstrip::rainbow_clock()
 
     localtime_r(&now, &timeinfo);
     strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-    ESP_LOGI(TAG, "%s hue %d", strftime_buf, hue);
+    //ESP_LOGI(TAG, "%s hue %d", strftime_buf, hue);
 
     hue = 359 - (now * 360 / (24*60*60) % 360);
     led_strip_hsv2rgb(hue, 100, cfg.bright, &red, &green, &blue);
@@ -429,7 +429,7 @@ void Ledstrip::clock2()
     if(lastSec != timeinfo.tm_sec)
     {
         strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-        ESP_LOGI(TAG, "%s", strftime_buf);
+        //ESP_LOGI(TAG, "%s", strftime_buf);
         lastSec = timeinfo.tm_sec;
     }
     

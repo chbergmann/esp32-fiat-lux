@@ -12,15 +12,19 @@
 #include "lwip/err.h"
 #include "lwip/sys.h"
 
-#include "wifi_station.h"
+#include "wifi.h"
 #include "sntp.h"
 #include "webserver.h"
+#include "file_server.h"
 
 static const char *TAG = "main";
+static const char* spiffs_path = "/data";
+static EventGroupHandle_t s_wifi_event_group;
 
 extern "C" void app_main(void)
 {
     Webserver webserver;
+    bool softap_mode = false;
 
     //Initialize NVS
     esp_err_t ret = nvs_flash_init();
@@ -40,26 +44,42 @@ extern "C" void app_main(void)
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default() );
 
-    ESP_ERROR_CHECK(webserver.init_leds());
+    ESP_ERROR_CHECK(mount_storage(spiffs_path));
+    ESP_ERROR_CHECK(webserver.init_leds(spiffs_path));
 
-    ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
-    wifi_init_sta();
+    s_wifi_event_group = xEventGroupCreate();
 
-    EventBits_t bits = wifi_wait_for_event();
-        /* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
-     * happened. */
-    if (bits & WIFI_CONNECTED_BIT) {
-        ESP_LOGI(TAG, "connected to ap SSID:%s", CONFIG_ESP_WIFI_SSID);
-        sntp_start();
-        /* Start the server for the first time */
-        webserver.start();
-        while(true)
-            vTaskDelay(1000000);
-            
-    } else if (bits & WIFI_FAIL_BIT) {
-        ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s", CONFIG_ESP_WIFI_SSID, CONFIG_ESP_WIFI_PASSWORD);
-        webserver.stop();
-    } else {
-        ESP_LOGE(TAG, "UNEXPECTED EVENT");
+    while(true)
+    {
+        if(softap_mode) {
+            wifi_init_softap(&s_wifi_event_group);
+        } else {
+            esp_err_t ret = wifi_init_sta(spiffs_path, &s_wifi_event_group);
+            if(ret != ESP_OK) {
+                softap_mode = true;
+                wifi_init_softap(&s_wifi_event_group);
+            }
+        } 
+        ESP_LOGI(TAG, "s_wifi_event_group %X", s_wifi_event_group);
+        EventBits_t bits = wifi_wait_for_event(s_wifi_event_group);
+        ESP_LOGI(TAG, "event %X", bits);
+            /* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
+        * happened. */
+        if (bits & ((1 << WIFI_EVENT_STA_CONNECTED) | (1 << WIFI_EVENT_AP_STACONNECTED)))
+        {
+            sntp_start();
+            /* Start the server for the first time */
+            webserver.start(spiffs_path);
+            while(true)
+                vTaskDelay(1000000);
+                
+        } else if (bits & (1 << WIFI_EVENT_STA_DISCONNECTED)) {
+            ESP_LOGE(TAG, "Disconnected.");
+            softap_mode = true;
+        } else if (bits & (1 << WIFI_EVENT_AP_STADISCONNECTED)) {
+            ESP_LOGE(TAG, "Disconnected from %s", CONFIG_WIFI_AP_SSID);
+        } else {
+            ESP_LOGE(TAG, "UNEXPECTED EVENT");
+        }
     }
 }

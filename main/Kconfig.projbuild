@@ -1,16 +1,20 @@
 menu "Fiat Lux Configuration"
 
-    config ESP_WIFI_SSID
-        string "WiFi SSID"
-        default "myssid"
+    config WIFI_AP_SSID
+        string "WiFi AccessPoint SSID"
+        default "Fiat Lux AP"
         help
             SSID (network name) for the example to connect to.
 
-    config ESP_WIFI_PASSWORD
-        string "WiFi Password"
-        default "mypassword"
+    config WIFI_AP_PASSWORD
+        string "WiFi AccessPoint Password"
+        default ""
         help
             WiFi password (WPA or WPA2) for the example to use.
+
+    config WIFI_AP_CHANNEL
+        int "WiFi AP channel"
+        default 5
 
     choice ESP_WIFI_SAE_MODE
         prompt "WPA3 SAE mode selection"

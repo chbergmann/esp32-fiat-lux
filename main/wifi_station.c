@@ -19,7 +19,7 @@
 #include "lwip/err.h"
 #include "lwip/sys.h"
 
-#include "wifi_station.h"
+#include "wifi.h"
 
 /* The examples use WiFi configuration that you can set via project configuration menu
 
@@ -59,18 +59,21 @@
 #endif
 
 /* FreeRTOS event group to signal when we are connected*/
-static EventGroupHandle_t s_wifi_event_group;
 
-
+#define SSID_SIZE 32
+#define PWD_SIZE  64
 
 static const char *TAG = "wifi station";
 
 static int s_retry_num = 0;
+static char wififile_path[32];
 
 
 static void event_handler(void* arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data)
 {
+    EventGroupHandle_t* p_wifi_event_group = (EventGroupHandle_t*) arg;
+
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         esp_wifi_connect();
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
@@ -78,44 +81,24 @@ static void event_handler(void* arg, esp_event_base_t event_base,
             esp_wifi_connect();
             s_retry_num++;
             ESP_LOGI(TAG, "retry to connect to the AP");
+            xEventGroupSetBits(*p_wifi_event_group, 1 << WIFI_EVENT_STA_DISCONNECTED);
         } else {
-            xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
+            xEventGroupSetBits(*p_wifi_event_group, 1 << WIFI_EVENT_STA_START);
         }
         ESP_LOGI(TAG,"connect to the AP fail");
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
         ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
         s_retry_num = 0;
-        xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+        xEventGroupSetBits(*p_wifi_event_group, 1 << WIFI_EVENT_STA_DISCONNECTED);
     }
 }
 
-void wifi_init_sta(void)
+esp_err_t wifi_init_sta(const char* spiffs_path, EventGroupHandle_t* p_wifi_event_group)
 {
-    s_wifi_event_group = xEventGroupCreate();
-
-    esp_netif_create_default_wifi_sta();
-
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
-    esp_event_handler_instance_t instance_any_id;
-    esp_event_handler_instance_t instance_got_ip;
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
-                                                        ESP_EVENT_ANY_ID,
-                                                        &event_handler,
-                                                        NULL,
-                                                        &instance_any_id));
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
-                                                        IP_EVENT_STA_GOT_IP,
-                                                        &event_handler,
-                                                        NULL,
-                                                        &instance_got_ip));
-
+    esp_wifi_deinit();
     wifi_config_t wifi_config = {
         .sta = {
-            .ssid = EXAMPLE_ESP_WIFI_SSID,
-            .password = EXAMPLE_ESP_WIFI_PASS,
             /* Authmode threshold resets to WPA2 as default if password matches WPA2 standards (password len => 8).
              * If you want to connect the device to deprecated WEP/WPA networks, Please set the threshold value
              * to WIFI_AUTH_WEP/WIFI_AUTH_WPA_PSK and set the password with length and format matching to
@@ -129,22 +112,86 @@ void wifi_init_sta(void)
 #endif
         },
     };
+    wifi_sta_config_t* pCfg = &wifi_config.sta;
+    snprintf(wififile_path, sizeof(wififile_path), "%s/ap.bin", spiffs_path);
+
+    FILE* f = fopen(wififile_path, "r");
+    if (f == NULL) 
+    {
+        ESP_LOGW(TAG, "Failed to open %s.", wififile_path);
+        return ESP_FAIL;
+    }
+    else 
+    {
+        if(fread(&pCfg->ssid, 1, sizeof(pCfg->ssid), f) != sizeof(pCfg->ssid))
+        {
+            ESP_LOGE(TAG, "Failed to read %s", wififile_path);
+            return ESP_FAIL;
+        }
+        if(fread(&pCfg->password, 1, sizeof(pCfg->password), f) != sizeof(pCfg->password))
+        {
+            ESP_LOGE(TAG, "Failed to read %s", wififile_path);
+            return ESP_FAIL;
+        }
+        fclose(f);
+    }
+
+
+    esp_netif_create_default_wifi_sta();
+
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+    esp_event_handler_instance_t instance_any_id;
+    esp_event_handler_instance_t instance_got_ip;
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
+                                                        ESP_EVENT_ANY_ID,
+                                                        &event_handler,
+                                                        p_wifi_event_group,
+                                                        &instance_any_id));
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
+                                                        IP_EVENT_STA_GOT_IP,
+                                                        &event_handler,
+                                                        p_wifi_event_group,
+                                                        &instance_got_ip));
+
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
     ESP_ERROR_CHECK(esp_wifi_start() );
 
     ESP_LOGI(TAG, "wifi_init_sta finished.");
+    return ESP_OK;
 }
 
-EventBits_t wifi_wait_for_event()
+EventBits_t wifi_wait_for_event(EventGroupHandle_t s_wifi_event_group)
 {
     /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
      * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) */
     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
-            WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
+            (1 << WIFI_EVENT_STA_CONNECTED) | (1 << WIFI_EVENT_STA_DISCONNECTED) |
+            (1 << WIFI_EVENT_AP_STACONNECTED) | (1 << WIFI_EVENT_AP_STADISCONNECTED),
             pdFALSE,
             pdFALSE,
             portMAX_DELAY);
 
     return bits;
+}
+
+esp_err_t wifi_write_config(uint8_t ssid[SSID_SIZE], uint8_t pwd[PWD_SIZE])
+{
+    FILE* f = fopen(wififile_path, "w");
+    if (f == NULL) {
+        ESP_LOGE(TAG, "Failed to open %s for writing", wififile_path);
+        return ESP_FAIL;
+    }
+    if(fwrite(&ssid, 1, SSID_SIZE, f) != SSID_SIZE ||
+        fwrite(pwd, 1, PWD_SIZE, f) != PWD_SIZE)
+    {
+        ESP_LOGE(TAG, "Failed to write to %s: %s", wififile_path, strerror(errno));
+        fclose(f);
+        return ESP_FAIL;
+    }
+    fclose(f);
+    esp_wifi_stop();
+    return ESP_OK;
 }
