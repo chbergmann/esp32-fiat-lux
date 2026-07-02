@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fiat Lux Settings</title>
+	<link rel="stylesheet" href="settings.css">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <script src="settings.js"></script>
+    <meta charset="UTF-8">
+</head>
+<body onload="loadSettings()" id="settingspage">
+    <div class="h1list"><img src="wifi-high-svgrepo-com.svg" class="gear"> <img src="favicon.svg" class="favicon"> <img src="wifi-high-svgrepo-com.svg" class="gear"></div>
+    <form action="/setwifi" id="settingslist" accept-charset="UTF-8">
+        <table id="tab1">
+            <tr><td class="setlbl"><label for="ssid">Wifi SSID </label></td>
+                <td class="setlbl"><input class="txtinp" id="ssid" type="text" name="ssid"></td></tr>
+            <tr><td class="setlbl"><label for="password">Wifi Password </label></td>
+                <td class="setlbl"><input class="txtinp" id="password" type="password" name="password"></td></tr>
+        </table>
+        <input id="btnsubmit" class="imgbutton" type="submit" value="Save">
+    </form>
+</body>
+</html>
