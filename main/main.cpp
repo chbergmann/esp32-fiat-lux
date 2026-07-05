@@ -25,6 +25,7 @@ extern "C" void app_main(void)
 {
     Webserver webserver;
     bool softap_mode = false;
+    bool connected = false;
 
     //Initialize NVS
     esp_err_t ret = nvs_flash_init();
@@ -46,38 +47,47 @@ extern "C" void app_main(void)
 
     ESP_ERROR_CHECK(mount_storage(spiffs_path));
     ESP_ERROR_CHECK(webserver.init_leds(spiffs_path));
+    ESP_ERROR_CHECK(webserver.start(spiffs_path));
 
     s_wifi_event_group = xEventGroupCreate();
+    ESP_ERROR_CHECK(wifi_init(&s_wifi_event_group, spiffs_path));
 
     while(true)
     {
-        if(softap_mode) {
-            wifi_init_softap(&s_wifi_event_group);
-        } else {
-            esp_err_t ret = wifi_init_sta(spiffs_path, &s_wifi_event_group);
-            if(ret != ESP_OK) {
+        if(!connected)
+        {
+            struct wifi_config_file_t wificfg;
+            if(wifi_read_config(&wificfg) != ESP_OK)
                 softap_mode = true;
-                wifi_init_softap(&s_wifi_event_group);
-            }
-        } 
-        ESP_LOGI(TAG, "s_wifi_event_group %X", s_wifi_event_group);
+            else
+                softap_mode = wificfg.use_ap;
+
+            if(softap_mode) {
+                wifi_start_softap();
+            } else {
+                esp_err_t ret = wifi_start_sta(&wificfg);
+                if(ret != ESP_OK) {
+                    wifi_start_softap();
+                }
+            } 
+        }
+
         EventBits_t bits = wifi_wait_for_event(s_wifi_event_group);
         ESP_LOGI(TAG, "event %X", bits);
+        xEventGroupClearBits(s_wifi_event_group, bits);
             /* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
         * happened. */
         if (bits & ((1 << WIFI_EVENT_STA_CONNECTED) | (1 << WIFI_EVENT_AP_STACONNECTED)))
         {
             sntp_start();
-            /* Start the server for the first time */
-            webserver.start(spiffs_path);
-            while(true)
-                vTaskDelay(1000000);
-                
+            connected = true;        
         } else if (bits & (1 << WIFI_EVENT_STA_DISCONNECTED)) {
             ESP_LOGE(TAG, "Disconnected.");
             softap_mode = true;
+            connected = false;
         } else if (bits & (1 << WIFI_EVENT_AP_STADISCONNECTED)) {
             ESP_LOGE(TAG, "Disconnected from %s", CONFIG_WIFI_AP_SSID);
+            connected = false;
         } else {
             ESP_LOGE(TAG, "UNEXPECTED EVENT");
         }

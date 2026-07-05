@@ -16,7 +16,8 @@ typedef enum {
     URI_SET,
     URI_POWER,
     URI_STRIPS,
-    URI_WIFI,
+    URI_GETWIFI,
+    URI_SETWIFI,
 } websvr_uri_t;
 
 typedef struct {
@@ -50,8 +51,12 @@ public:
     static bool query_key_str(httpd_req_t *req, const char *key, char *str, size_t strlen);
     esp_err_t led_get_handler(httpd_req_t *req);
     esp_err_t led_set_handler(httpd_req_t *req);
+    esp_err_t get_wifi_handler(httpd_req_t *req);
     esp_err_t set_wifi_handler(httpd_req_t *req);
     esp_err_t led_val_handler(httpd_req_t *req);
     esp_err_t led_power_handler(httpd_req_t *req);
     esp_err_t led_strip_handler(httpd_req_t *req);
+
+    static string to_json(const string& tag, uint32_t nr);
+    static string to_json(const string& tag, const string& str);
 };

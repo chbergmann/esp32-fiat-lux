@@ -4,7 +4,7 @@
     <title>Fiat Lux Settings</title>
 	<link rel="stylesheet" href="settings.css">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-    <script src="settings.js"></script>
+    <script src="wifisettings.js"></script>
     <meta charset="UTF-8">
 </head>
 <body onload="loadSettings()" id="settingspage">
@@ -15,6 +15,8 @@
                 <td class="setlbl"><input class="txtinp" id="ssid" type="text" name="ssid"></td></tr>
             <tr><td class="setlbl"><label for="password">Wifi Password </label></td>
                 <td class="setlbl"><input class="txtinp" id="password" type="password" name="password"></td></tr>
+            <tr><td class="setlbl"><label>Open Access Point</label></td>
+                <td class="setlbl"><input type="checkbox" id="ap" name="ap" value="on"><label for="ap" id="apname"></label></td></tr>
         </table>
         <input id="btnsubmit" class="imgbutton" type="submit" value="Save">
     </form>

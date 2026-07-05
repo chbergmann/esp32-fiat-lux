@@ -14,7 +14,6 @@
 #include <nvs_flash.h>
 #include <sys/param.h>
 #include "esp_netif.h"
-#include "protocol_examples_utils.h"
 #include "esp_tls_crypto.h"
 #include <esp_http_server.h>
 #include "esp_event.h"
@@ -55,6 +54,7 @@ static esp_err_t c_led_set_handler(httpd_req_t *req);
 static esp_err_t c_led_val_handler(httpd_req_t *req);
 static esp_err_t c_led_power_handler(httpd_req_t *req);
 static esp_err_t c_led_strip_handler(httpd_req_t *req);
+static esp_err_t c_get_wifi_handler(httpd_req_t *req);
 static esp_err_t c_set_wifi_handler(httpd_req_t *req);
 
 const websvr_table_t Webserver::websvr_table[] = {
@@ -64,7 +64,8 @@ const websvr_table_t Webserver::websvr_table[] = {
     { URI_SET,    "/set",       c_led_set_handler },
     { URI_POWER,  "/power",     c_led_power_handler },
     { URI_STRIPS, "/strips",    c_led_strip_handler },
-    { URI_WIFI,   "/setwifi",   c_set_wifi_handler },
+    { URI_GETWIFI,"/getwifi",   c_get_wifi_handler },
+    { URI_SETWIFI,"/setwifi",   c_set_wifi_handler },
     { URI_END,    "",           nullptr },
 };
     
@@ -246,6 +247,13 @@ static esp_err_t c_led_strip_handler(httpd_req_t *req)
     return webserver->led_strip_handler(req);
 }
 
+static esp_err_t c_get_wifi_handler(httpd_req_t *req)
+{
+    ESP_LOGI(TAG, "GET %s", req->uri);
+    Webserver* webserver = (Webserver*)req->user_ctx;
+    return webserver->get_wifi_handler(req);
+}
+
 static esp_err_t c_set_wifi_handler(httpd_req_t *req)
 {
     ESP_LOGI(TAG, "GET %s", req->uri);
@@ -372,18 +380,38 @@ esp_err_t Webserver::led_set_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+esp_err_t Webserver::get_wifi_handler(httpd_req_t *req)
+{
+    wifi_config_file_t cfg = { .ssid="", .pwd="", .use_ap=true };
+    wifi_read_config(&cfg);
+    
+    string json = "{" + 
+        Ledstrip::to_json("ssid", (char*)cfg.ssid) + "," + 
+        Ledstrip::to_json("use_ap", cfg.use_ap) + "," + 
+        Ledstrip::to_json("apname", CONFIG_WIFI_AP_SSID) +
+        "}";
+    
+    httpd_resp_set_type(req, "application/json;charset=utf-8");
+    httpd_resp_send(req, json.c_str(), json.length());
+    return ESP_OK;
+}
+
 esp_err_t Webserver::set_wifi_handler(httpd_req_t *req)
 {
-    uint8_t ssid[32];
-    uint8_t pwd[64];
-    if(query_key_str(req, "ssid", (char*)ssid, sizeof(ssid)) &&
-       query_key_str(req, "password", (char*)pwd, sizeof(pwd))) {
-            
-        wifi_write_config(ssid, pwd);
+    wifi_config_file_t cfg = { .ssid="", .pwd="", .use_ap=false };
+    char ap[16];
+    if(query_key_str(req, "ap", ap, sizeof(ap)) && strcmp(ap, "on"))
+        cfg.use_ap = true;
+
+    if(query_key_str(req, "ssid", (char*)cfg.ssid, SSID_SIZE) &&
+       query_key_str(req, "password", (char*)cfg.pwd, PWD_SIZE)
+       ) {
+        wifi_write_config(&cfg);
     }
     else {
         ESP_LOGE(TAG, "set_wifi_handler did not get ssid and password");
     }
+    esp_wifi_disconnect();
     return ESP_OK;
 }
 
